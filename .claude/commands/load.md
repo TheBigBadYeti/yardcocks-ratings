@@ -51,3 +51,26 @@ Run these steps in order. Do not skip steps or reorder them.
    ```
    Use today's actual date in the commit message. End state: GitHub has only
    this week's raw CSVs (last week's are gone) plus the fresh processed ratings.
+
+7. **Print the load summary.** After a successful push, output exactly this block:
+
+   ```
+   ── Load complete ──────────────────────────
+   CSVs swapped in : <N>
+   Players scored  : <total>
+   Kipp roster     : <count>
+   Pushed to GitHub ✓
+   ───────────────────────────────────────────
+   ```
+
+   Populate each value from the engine's output line (the `[ok]` line reports
+   players and managed-roster count). Count the CSV files copied into data/raw/
+   for "CSVs swapped in."
+
+   **Hard stops — do not print the success summary if:**
+   - Any of the four required split flags (rostered-hitters, rostered-pitchers,
+     fa-hitters, fa-pitchers) was not found by identify_exports.py. Instead,
+     print: `⚠ MISSING EXPORTS: <list of missing flags> — fix before committing.`
+   - Kipp roster count ≠ 40. Instead, print:
+     `⚠ ROSTER COUNT WRONG: engine reported <N>, expected 40 — do not trust these ratings.`
+   - Either hard stop fires before the commit step: do not commit, do not push.
