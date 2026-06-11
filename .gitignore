@@ -1,8 +1,10 @@
-# Volatile data — re-exported / regenerated each cycle, never committed
+# Raw Fantrax exports — volatile, never committed
 data/raw/*
-data/processed/*
 !data/raw/.gitkeep
-!data/processed/.gitkeep
+
+# Processed outputs — ratings CSVs are committed; per-run review artifact is not
+!data/processed/
+data/processed/prospect_match_misses.csv
 
 # Python
 .venv/
