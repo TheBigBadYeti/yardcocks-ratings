@@ -30,6 +30,20 @@ Build and maintain these views as context throughout the session:
 - **Pipeline health** — Minors players tiered by dynasty_score; count of prospects with
   dynasty_score ≥ 45 as a depth gauge.
 
+## News checks
+
+Before delivering any verdict on a specific player, web-search that player's most recent news.
+Look for: injuries, IL moves, call-ups or demotions, role changes, batting-order changes, and
+return timelines. Surface what you find as a short flag next to the score — never silently fold
+news into the score without saying so.
+
+Format: `[NEWS: one-line summary]` inline with the player's score line.
+
+If the news materially conflicts with the engine's score (e.g., a high-win-now player just hit
+the 60-day IL, or a low-score prospect just got promoted), say so explicitly: state what the
+score says, what the news says, and which to trust and why. The engine's data is a snapshot;
+recent news can make it stale in either direction.
+
 ## How to interact
 
 - Address what you can from the data first, then ask clarifying questions only when a decision
