@@ -1,5 +1,5 @@
-# Raw Fantrax exports — volatile, never committed
-data/raw/*
+# Raw Fantrax exports — committed weekly (swapped in place each refresh)
+!data/raw/*.csv
 !data/raw/.gitkeep
 
 # Processed outputs — ratings CSVs are committed; per-run review artifact is not
