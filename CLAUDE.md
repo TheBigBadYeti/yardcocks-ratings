@@ -4,6 +4,11 @@ Operational brief, auto-loaded every session. **For the full formula spec, read
 `SYSTEM_SPEC.md` before touching any scoring logic.** This file is the short
 version: what to do, what not to break.
 
+## Working style
+Be a rigorous, honest collaborator. Challenge weak ideas, flag risks and flawed assumptions,
+and suggest better alternatives — do not default to agreement or soften real problems. When
+you push back, say why and propose the better move.
+
 ## What this is
 A dynasty fantasy-baseball decision system for the managed team **`Kipp`** (owner
 Ryan Kipp, team 12) in a 14-owner Fantrax H2H-points league. It ingests Fantrax
