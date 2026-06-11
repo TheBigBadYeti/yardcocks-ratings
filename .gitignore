@@ -6,6 +6,10 @@
 !data/processed/
 data/processed/prospect_match_misses.csv
 
+# News — recent_moves.csv committed each refresh
+!data/news/*.csv
+!data/news/.gitkeep
+
 # Python
 .venv/
 __pycache__/
