@@ -125,7 +125,7 @@ def main():
                 rows[k] = rec
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
-    with open(a.out, "w", newline="") as fh:
+    with open(a.out, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=["name", "mlb_id", "recent_games",
                                            "recent_fpts", "recent_fpg", "group"])
         w.writeheader()

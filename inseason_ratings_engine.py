@@ -133,6 +133,7 @@ CONFIG = {
         "grade_lo": -4.0, "grade_hi": 8.0, "matched_flat": 4.0,
     },
     "prospect_ranks_path": "prospect_ranks.csv",   # cache; refresh ~monthly
+    "recency_path": "recent_fpg.csv",              # trailing-window cache; refresh ~weekly
 
     # --- age curve: step thresholds (additive), separate H / P -------------
     #     (age <= threshold -> adjustment); missing age -> 0
@@ -594,6 +595,40 @@ def attach_prospect_ranks(pool, path=None, misses_path=None):
     return pool
 
 
+def attach_recency(pool, path=None):
+    """Join trailing-window production (fetch_recency.py cache) by normalized name.
+
+    Adds recent_games, recent_fpts, recent_fpg, and hot_cold (recent FP/G minus
+    season FP/G; positive = trending up). This is a forward-looking SIGNAL only --
+    it does NOT modify win_now/dynasty here. It surfaces hot/cold context and is
+    the input the projection layer (next build) will use to make value
+    forward-looking. Missing cache -> columns stay NaN and the engine still runs.
+    """
+    import os
+    c = CONFIG["cols"]
+    path = path or CONFIG.get("recency_path")
+    if not (path and os.path.exists(path)):       # repo layout or flat working dir
+        for cand in ("data/recency/recent_fpg.csv", "recent_fpg.csv"):
+            if os.path.exists(cand):
+                path = cand
+                break
+    for col in ["recent_games", "recent_fpts", "recent_fpg", "hot_cold"]:
+        pool[col] = np.nan
+    if not path or not os.path.exists(path):
+        print(f"[recency] no cache at {path!r}; recency columns blank")
+        return pool
+    rec = pd.read_csv(path)
+    rec["k"] = rec["name"].map(_norm_name)
+    rec = rec.drop_duplicates("k", keep="first")
+    keys = pool[c["player"]].map(_norm_name)
+    for src in ["recent_games", "recent_fpts", "recent_fpg"]:
+        if src in rec.columns:
+            pool[src] = keys.map(dict(zip(rec["k"], pd.to_numeric(rec[src], errors="coerce"))))
+    pool["hot_cold"] = (pool["recent_fpg"] - pool["fpg_raw"]).round(2)
+    print(f"[recency] cache={len(rec)}  pool-matched={int(pool['recent_fpg'].notna().sum())}")
+    return pool
+
+
 def _prospect_bonus_row(overall, org, grade, is_minor, ros, age_adj):
     pr = CONFIG["prospect_rank"]; pf = CONFIG["prospect_fallback"]
     bonus, matched = 0.0, False
@@ -732,6 +767,7 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
     os.makedirs(outdir, exist_ok=True)
     pool = attach_prospect_ranks(pool,
                                  misses_path=os.path.join(outdir, "prospect_match_misses.csv"))
+    pool = attach_recency(pool)
     pool = compute_dynasty(pool)
     pool, vor_repl = compute_vor(pool)
     print("[vor] replacement FPts by position: " + ", ".join(
@@ -765,6 +801,11 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
         if src in pool.columns:
             out[dst] = pool[src]
 
+    for src, dst in [("recent_fpg", "recent_fpg"), ("recent_games", "recent_games"),
+                     ("hot_cold", "hot_cold")]:    # trailing-window form (forward signal)
+        if src in pool.columns:
+            out[dst] = pool[src]
+
     if mode == "split":   # Fork 2: surface the market read separately
         out["market_ros"] = pool["_ros_market"].round(1)
         out["market_rank_pct"] = pool["rank_pct_val"].round(1)
@@ -772,7 +813,7 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
 
     for col in ["fpg_regressed", "win_now_score", "dynasty_score", "dynasty_minus_win_now",
                 "sample_confidence", "estimated_games", "ip", "ip_pct", "whip", "k_per_9", "qs_rate",
-                "vor"]:
+                "vor", "recent_fpg", "hot_cold"]:
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors="coerce").round(2)
 
