@@ -1,5 +1,5 @@
-Bring all external data current: news (always), prospect ranks (if stale), engine (if
-prospects changed). Then commit and push. Run the three steps in order.
+Bring all external data current: news (always), recency (always), prospect ranks (if stale),
+engine (if prospects changed). Run the steps in order.
 
 ---
 
@@ -35,12 +35,36 @@ Add a comment row at the top: `# generated: <ISO timestamp>`.
 
 ---
 
-## Step 2 — Prospect ranks (only if stale or forced)
+## Step 2 — Recency (always run)
+
+Run the recency fetcher to pull each player's trailing-30-day fantasy production:
+
+```
+python3 scripts/fetch_recency.py
+```
+
+This calls the MLB Stats API, scores each player's component stats with the exact league
+rules (same conversion validated against Fantrax season exports — zero error), and writes
+`data/recency/recent_fpg.csv` with columns:
+`name, mlb_id, recent_games, recent_fpts, recent_fpg, group`
+
+**Known limitation:** the `byDateRange` endpoint does not populate `qualityStarts`.
+The script treats missing QS as 0, so SP recent_fpts are understated by 3 × actual_QS.
+For a typical SP with 4 QS in 30 days that's ~12 FPts undercount — modest relative to
+~100–140 FPts total, but flag it when discussing SP recency scores explicitly.
+`holds` and all other fields populate correctly.
+
+Note the player count printed (should be ~1,000+) and the top-5 hottest players. If the
+count is below 500, something is wrong with the API call — investigate before continuing.
+
+---
+
+## Step 3 — Prospect ranks (only if stale or forced)
 
 Check the modification date of `data/prospects/prospect_ranks.csv`.
 
 - **If ≤ 21 days old** and the user did not say "force": skip the pull. Note the cache age
-  in the summary and move to Step 3.
+  in the summary and move to Step 4.
 - **If > 21 days old** or the user said "force": re-pull.
 
 **To re-pull prospect ranks:**
@@ -59,10 +83,10 @@ Check the modification date of `data/prospects/prospect_ranks.csv`.
 
 ---
 
-## Step 3 — Engine re-run (only if prospects changed)
+## Step 4 — Engine re-run (only if prospects changed)
 
-- If prospect ranks were **skipped** in Step 2: do not re-run. The news file is an
-  overlay and never changes scores, so news alone does not trigger a re-run.
+- If prospect ranks were **skipped** in Step 3: do not re-run. News and recency are
+  overlays and never change scores, so they alone do not trigger a re-run.
 - If prospect ranks were **re-pulled and changed**: run the engine using the existing
   raw exports already in `data/raw/` (identified via `scripts/identify_exports.py`).
   Confirm ~10 k players scored and Kipp roster = 40.
@@ -70,10 +94,10 @@ Check the modification date of `data/prospects/prospect_ranks.csv`.
 
 ---
 
-## Step 4 — Commit and push
+## Step 5 — Commit and push
 
-Stage whatever changed: `data/news/recent_moves.csv`, `data/prospects/prospect_ranks.csv`
-(if refreshed), `data/processed/*.csv` (if engine re-ran).
+Stage whatever changed: `data/news/recent_moves.csv`, `data/recency/recent_fpg.csv`,
+`data/prospects/prospect_ranks.csv` (if refreshed), `data/processed/*.csv` (if engine re-ran).
 
 ```
 git add -A
@@ -82,18 +106,20 @@ git push
 ```
 
 Example messages:
-- `refresh 2026-06-18: news + prospects + engine`
-- `refresh 2026-06-18: news only (prospects current, 8d old)`
-- `refresh 2026-06-18: news + prospects refreshed, no rank changes, engine skipped`
+- `refresh 2026-06-18: news + recency + prospects + engine`
+- `refresh 2026-06-18: news + recency (prospects current, 8d old)`
+- `refresh 2026-06-18: news + recency + prospects refreshed, no rank changes, engine skipped`
 
 ---
 
-## Step 5 — Print summary
+## Step 6 — Print summary
 
 ```
 ── Refresh complete ─────────────────────────────
 News          : <N> moves in last 14 days
                 <K> touch Kipp roster: <comma-separated player names>
+Recency       : <N> players  window <start>..<end>
+                top-5: <name(fpts), ...>
 Prospects     : <refreshed (N rows changed) | skipped (Nd old, next due Nd)>
 Engine        : <re-ran — 10123 players, Kipp=40 | skipped>
 Pushed ✓

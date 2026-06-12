@@ -10,6 +10,10 @@ data/processed/prospect_match_misses.csv
 !data/news/*.csv
 !data/news/.gitkeep
 
+# Recency — recent_fpg.csv committed each refresh
+!data/recency/*.csv
+!data/recency/.gitkeep
+
 # Python
 .venv/
 __pycache__/
