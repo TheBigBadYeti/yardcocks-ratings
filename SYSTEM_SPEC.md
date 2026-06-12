@@ -189,6 +189,46 @@ minor:     24.0 + 0.15·max(win_now, 0) + 0.22·ros + 0.10·rank_pct
 
 ---
 
+## 5.10 VOR — value over replacement (parallel lens)
+
+VOR is a season-total FPts lens that runs alongside `win_now_score` and
+`dynasty_score` without modifying either. It answers a different question:
+*how much does this player produce above the freely available alternative at
+their position?*
+
+**Startable slots** (14 teams × lineup):
+
+| Position | Slots |
+|---|---|
+| C | 14 |
+| 1B | 14 |
+| 2B | 14 |
+| 3B | 14 |
+| SS | 14 |
+| OF | 42 |
+| SP | 84 |
+| RP | 42 |
+
+**Replacement level** for each position = total FPts of the non-Minors player
+ranked `slots + 1` among all players eligible at that position (i.e., the first
+player who cannot crack a starting lineup anywhere in the league). The engine
+prints this table on every run.
+
+**Player VOR** = their total FPts minus the replacement level at their
+*best-eligible position* — the position where the difference is largest.
+`vor_pos` records which position gave that best value. Multi-eligible players
+(e.g., SS/2B, SP/RP) compete in all relevant pools and receive the highest VOR.
+
+Minors players receive a VOR value for reference but are not part of the pool
+that *sets* replacement levels.
+
+**Output columns:** `vor` (float, same scale as FPts; can be negative) and
+`vor_pos` (string). Both appear in `current_player_ratings.csv` and
+`kipp_current_player_values.csv`. `win_now_score` and `dynasty_score` are
+unchanged.
+
+---
+
 ## 6. Key design decisions
 
 - **Pitcher volume / IP (Fork 1):** the engine does **not** use IP or GS as a
