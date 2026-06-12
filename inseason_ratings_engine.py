@@ -141,20 +141,22 @@ CONFIG = {
 
     "managed_team": "Kipp",   # owner handle in the Status column
 
-    # --- VOR: startable slots per position across the 14-team league ---------
-    #     14 teams × lineup: C×1, 1B×1, 2B×1, 3B×1, SS×1, OF×3, SP×6, RP×3.
-    #     Replacement level = FPts of the player ranked slots+1 among non-Minors
-    #     players eligible at that position. Parallel lens only — does not affect
-    #     win_now_score or dynasty_score.
-    "startable_slots": {
-        "C": 14, "1B": 14, "2B": 14, "3B": 14, "SS": 14,
-        "OF": 42, "SP": 84, "RP": 42,
-    },
-
     # --- Fork 1: direct pitcher innings (available league-wide via the
     #     hitter/pitcher split exports). 0.0 = faithful (volume only via FPts);
     #     >0 blends an IP-percentile term into pitcher win-now.  # CALIBRATE
     "pitcher_ip_pct_weight": 0.0,
+
+    # --- value over replacement (VOR) --------------------------------------
+    #   League startable slots by position: 14 teams x lineup
+    #   (C,1B,2B,3B,SS,3xOF,UT,6xSP,3xRP). Replacement level at a position =
+    #   the season FPts of the player ranked (slots+1) among non-Minors players
+    #   eligible there. VOR is season-to-date (volume embedded, so hitters and
+    #   pitchers stay comparable). It is a PARALLEL value lens for now -- it does
+    #   not modify win_now/dynasty. Rest-of-season refinement arrives with the
+    #   recency layer. UT demand is folded into the position slots, not modeled
+    #   separately yet.  # CALIBRATE (slot counts are league structure, not Codex)
+    "vor_startable_slots": {"C": 14, "1B": 14, "2B": 14, "3B": 14, "SS": 14,
+                            "OF": 42, "SP": 84, "RP": 42},
 }
 
 MISSING_TOKENS = {"", "-", "--", "nan", "none", "n/a", "na"}
@@ -654,62 +656,55 @@ def compute_dynasty(pool):
 
 
 # --------------------------------------------------------------------------
-# VOR  (value over replacement — parallel lens, does not touch scores)
+# value over replacement (VOR)  -- season-total points above the startable line
 # --------------------------------------------------------------------------
 def compute_vor(pool):
-    """Compute VOR for every player against the startable-slot replacement levels.
+    """Value over replacement in SEASON-TOTAL fantasy points.
 
-    Replacement level per position = FPts of the non-Minors player ranked
-    startable_slots+1 among all players eligible there (the first player who
-    can't crack a starting lineup anywhere). VOR = FPts - replacement at the
-    player's best-eligible position. vor_pos records which position gave that
-    best value. Minors players receive VOR relative to their best eligible
-    position's replacement level (informational; they aren't in the pool that
-    sets replacement).
+    Replacement level at a position = the season FPts of the player ranked just
+    below the league's startable depth there (slots + 1), among non-Minors
+    players eligible at that position. A player's VOR = his total FPts minus the
+    replacement level at his best-eligible position (the one giving the highest
+    VOR). Using season totals (not a per-game rate) keeps hitters and pitchers on
+    a comparable scale, since totals embed playing-time volume.
+
+    This is a PARALLEL value lens: it does not modify win_now or dynasty. It is
+    left blank for Minors (no MLB production to measure) and for players with no
+    eligible scoring position. Returns (pool, replacement_levels_dict).
     """
-    slots = CONFIG["startable_slots"]
     c = CONFIG["cols"]
-    fpts = pool["fpts_num"].fillna(0.0)
-    not_minors = _not_minors(pool)
+    slots = CONFIG["vor_startable_slots"]
+    not_minors = ~pool["roster_status_norm"].str.contains("Minor", case=False, na=False)
 
-    # Eligible startable positions per player (tokens in startable_slots only)
-    pos_series = pool[c["position"]].fillna("")
-    def _eligible(pos_str):
-        return [t.strip().upper() for t in str(pos_str).split(",")
-                if t.strip().upper() in slots]
-    player_positions = pos_series.map(_eligible)
+    def _toks(s):
+        return [t.strip().upper() for t in str(s).split(",") if t.strip()]
 
-    # Replacement level: FPts of the (slots+1)th non-Minors eligible player
-    replacement = {}
-    for pos, n in slots.items():
-        elig_fpts = fpts[not_minors & player_positions.map(lambda p, _p=pos: _p in p)] \
-            .sort_values(ascending=False)
-        replacement[pos] = float(elig_fpts.iloc[n]) if len(elig_fpts) > n else 0.0
+    repl = {}
+    for pos, s in slots.items():
+        elig = pool[not_minors & pool[c["position"]].map(lambda x: pos in _toks(x))]
+        vals = np.sort(elig["fpts_num"].dropna().values)[::-1]
+        if len(vals) > s:
+            repl[pos] = float(vals[s])
+        elif len(vals):
+            repl[pos] = float(vals[-1])
+        else:
+            repl[pos] = np.nan
 
-    # Print replacement table
-    print("[VOR] per-position replacement levels:")
-    for pos in ("C", "1B", "2B", "3B", "SS", "OF", "SP", "RP"):
-        if pos in replacement:
-            print(f"  {pos:4s}  slots={slots[pos]:2d}  repl={replacement[pos]:.1f} FPts")
+    def _vor(row):
+        if pd.isna(row["fpts_num"]):
+            return np.nan, ""
+        ts = [t for t in _toks(row[c["position"]]) if t in repl and not pd.isna(repl[t])]
+        if not ts:
+            return np.nan, ""
+        best = max(ts, key=lambda t: row["fpts_num"] - repl[t])
+        return row["fpts_num"] - repl[best], best
 
-    # VOR per player: best VOR across eligible positions
-    vor_list, vor_pos_list = [], []
-    for fp, positions in zip(fpts, player_positions):
-        if not positions:
-            vor_list.append(np.nan)
-            vor_pos_list.append(None)
-            continue
-        best_vor, best_pos = None, None
-        for pos in positions:
-            v = fp - replacement[pos]
-            if best_vor is None or v > best_vor:
-                best_vor, best_pos = v, pos
-        vor_list.append(best_vor)
-        vor_pos_list.append(best_pos)
-
-    pool["vor"] = vor_list
-    pool["vor_pos"] = vor_pos_list
-    return pool
+    res = pool.apply(_vor, axis=1)
+    pool["vor"] = [r[0] for r in res]
+    pool["vor_pos"] = [r[1] for r in res]
+    pool.loc[~not_minors, "vor"] = np.nan          # VOR is a current-MLB-value metric
+    pool.loc[~not_minors, "vor_pos"] = ""
+    return pool, repl
 
 
 # --------------------------------------------------------------------------
@@ -738,7 +733,10 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
     pool = attach_prospect_ranks(pool,
                                  misses_path=os.path.join(outdir, "prospect_match_misses.csv"))
     pool = compute_dynasty(pool)
-    pool = compute_vor(pool)
+    pool, vor_repl = compute_vor(pool)
+    print("[vor] replacement FPts by position: " + ", ".join(
+        f"{k}={vor_repl[k]:.0f}" for k in CONFIG["vor_startable_slots"]
+        if k in vor_repl and not pd.isna(vor_repl[k])))
 
     out_cols = {
         c["player"]: "player", c["team"]: "team", c["position"]: "position",
@@ -749,7 +747,6 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
         "sample_confidence": "sample_confidence",
         "win_now_score": "win_now_score", "dynasty_score": "dynasty_score",
         "dynasty_minus_win_now": "dynasty_minus_win_now",
-        "vor": "vor", "vor_pos": "vor_pos",
     }
     out = pool[list(out_cols.keys())].rename(columns=out_cols)
 
@@ -764,14 +761,18 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
         if src in pool.columns:
             out[dst] = pool[src]
 
+    for src, dst in [("vor", "vor"), ("vor_pos", "vor_pos")]:   # value over replacement
+        if src in pool.columns:
+            out[dst] = pool[src]
+
     if mode == "split":   # Fork 2: surface the market read separately
         out["market_ros"] = pool["_ros_market"].round(1)
         out["market_rank_pct"] = pool["rank_pct_val"].round(1)
         out["market_plusminus"] = pool["plusminus_num"]
 
     for col in ["fpg_regressed", "win_now_score", "dynasty_score", "dynasty_minus_win_now",
-                "vor", "sample_confidence", "estimated_games", "ip", "ip_pct",
-                "whip", "k_per_9", "qs_rate"]:
+                "sample_confidence", "estimated_games", "ip", "ip_pct", "whip", "k_per_9", "qs_rate",
+                "vor"]:
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors="coerce").round(2)
 

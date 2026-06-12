@@ -219,8 +219,9 @@ prints this table on every run.
 `vor_pos` records which position gave that best value. Multi-eligible players
 (e.g., SS/2B, SP/RP) compete in all relevant pools and receive the highest VOR.
 
-Minors players receive a VOR value for reference but are not part of the pool
-that *sets* replacement levels.
+Minors players receive `vor = NaN` — no current MLB production to measure, and
+they are excluded from setting replacement levels. Players with no eligible
+scoring position (e.g., pure UT) also receive `vor = NaN`.
 
 **Output columns:** `vor` (float, same scale as FPts; can be negative) and
 `vor_pos` (string). Both appear in `current_player_ratings.csv` and
