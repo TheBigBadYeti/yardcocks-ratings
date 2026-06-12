@@ -158,6 +158,23 @@ CONFIG = {
     #   separately yet.  # CALIBRATE (slot counts are league structure, not Codex)
     "vor_startable_slots": {"C": 14, "1B": 14, "2B": 14, "3B": 14, "SS": 14,
                             "OF": 42, "SP": 84, "RP": 42},
+
+    # --- forward-looking value (rest-of-season projection) ------------------
+    #   Blend recent form with season rate, project over games remaining, then
+    #   VOR on the projection. Fixes the injured-star problem (value a player on
+    #   his rate going forward, not his depressed season-to-date total). Parallel
+    #   lens; does not modify win_now/dynasty/VOR. Constants are reasoned defaults
+    #   refined later by the schedule (remaining games) and news (injury) layers.
+    "forward_value": {                                    # CALIBRATE
+        "recent_full_games": 20,    # recent games at which recency earns full weight
+        "recent_max_weight": 0.5,   # recency never exceeds half the blended rate
+        "season_games": 162,
+        "fulltime_hitter_rate": 0.92,    # healthy regular's share of remaining team games
+        "starts_per_team_games": 0.20,   # ~1 start per 5 team games
+        "rp_appear_rate": 0.45,          # reliever appearances per remaining team game
+        # forward VOR measures ROS value AT FULL HEALTH; current-injury risk is the
+        # news layer's job (an overlay), not a crude flat haircut baked in here.
+    },
 }
 
 MISSING_TOKENS = {"", "-", "--", "nan", "none", "n/a", "na"}
@@ -742,6 +759,73 @@ def compute_vor(pool):
     return pool, repl
 
 
+def compute_forward_vor(pool):
+    """Forward-looking value: project a blended (recent + season) rate over the
+    games remaining, then run VOR on that projection. A player is valued on his
+    rate GOING FORWARD, not his depressed season-to-date total -- which is what
+    un-breaks injured/returning stars. Parallel lens; does not modify
+    win_now/dynasty/season-VOR. Blank for Minors. Remaining-games and the injury
+    haircut are league estimates refined later by the schedule / news layers.
+    Returns (pool, replacement_dict, team_games_remaining).
+    """
+    c = CONFIG["cols"]
+    fv = CONFIG["forward_value"]
+    slots = CONFIG["vor_startable_slots"]
+    not_minors = ~pool["roster_status_norm"].str.contains("Minor", case=False, na=False)
+
+    def _toks(s):
+        return [t.strip().upper() for t in str(s).split(",") if t.strip()]
+
+    # --- forward rate: blend recent_fpg with the engine's (regressed) season rate
+    season_rate = pool["fpg_regressed"].fillna(0.0)
+    if "recent_fpg" in pool.columns:
+        rg = pool["recent_games"].fillna(0.0)
+        w = fv["recent_max_weight"] * np.clip(rg / fv["recent_full_games"], 0.0, 1.0)
+        w = np.where(pool["recent_fpg"].notna(), w, 0.0)     # no recent data -> season only
+        forward = w * pool["recent_fpg"].fillna(0.0) + (1 - w) * season_rate
+    else:
+        forward = season_rate
+    pool["forward_fpg"] = np.round(forward, 2)
+
+    # --- remaining games: calendar x role factor (ROS value at full health) ----
+    #   team games played ~ the most-played relevant hitter; use the in-pool set so
+    #   the thousands of zero-game free agents don't drag the estimate down.
+    inpool_h = pool["_inpool"] & (pool["pool_group"] == "H") if "_inpool" in pool.columns \
+        else (pool["pool_group"] == "H")
+    hg = pool.loc[inpool_h & not_minors, "estimated_games"]
+    team_played = float(np.nanpercentile(hg, 95)) if len(hg.dropna()) else 0.0
+    team_remaining = max(fv["season_games"] - team_played, 0.0)
+
+    def role_remaining(role):
+        if role == "H":
+            return team_remaining * fv["fulltime_hitter_rate"]
+        if role == "RP":
+            return team_remaining * fv["rp_appear_rate"]
+        return team_remaining * fv["starts_per_team_games"]     # SP and SP/RP
+
+    pool["remaining_games"] = np.round(pool["role"].map(role_remaining), 1)
+    pool["ros_proj"] = np.round(pool["forward_fpg"] * pool["remaining_games"], 1)
+
+    # --- VOR on the projection (same replacement logic, fed projected points) --
+    repl = {}
+    for pos, k in slots.items():
+        elig = pool[not_minors & pool[c["position"]].map(lambda x: pos in _toks(x))]
+        vals = np.sort(elig["ros_proj"].dropna().values)[::-1]
+        repl[pos] = float(vals[k]) if len(vals) > k else (float(vals[-1]) if len(vals) else np.nan)
+
+    def _rv(row):
+        if pd.isna(row["ros_proj"]):
+            return np.nan
+        ts = [t for t in _toks(row[c["position"]]) if t in repl and not pd.isna(repl[t])]
+        if not ts:
+            return np.nan
+        return row["ros_proj"] - min(repl[t] for t in ts)       # best (scarcest) position
+    pool["ros_vor"] = pool.apply(_rv, axis=1).round(1)
+    for col in ["forward_fpg", "remaining_games", "ros_proj", "ros_vor"]:
+        pool.loc[~not_minors, col] = np.nan
+    return pool, repl, team_remaining
+
+
 # --------------------------------------------------------------------------
 # run
 # --------------------------------------------------------------------------
@@ -773,6 +857,10 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
     print("[vor] replacement FPts by position: " + ", ".join(
         f"{k}={vor_repl[k]:.0f}" for k in CONFIG["vor_startable_slots"]
         if k in vor_repl and not pd.isna(vor_repl[k])))
+    pool, fvor_repl, team_rem = compute_forward_vor(pool)
+    print(f"[forward] team games remaining~{team_rem:.0f}; projected-VOR replacement: " + ", ".join(
+        f"{k}={fvor_repl[k]:.0f}" for k in CONFIG["vor_startable_slots"]
+        if k in fvor_repl and not pd.isna(fvor_repl[k])))
 
     out_cols = {
         c["player"]: "player", c["team"]: "team", c["position"]: "position",
@@ -806,6 +894,11 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
         if src in pool.columns:
             out[dst] = pool[src]
 
+    for src, dst in [("forward_fpg", "forward_fpg"), ("remaining_games", "remaining_games"),
+                     ("ros_proj", "ros_proj"), ("ros_vor", "ros_vor")]:   # forward-looking value
+        if src in pool.columns:
+            out[dst] = pool[src]
+
     if mode == "split":   # Fork 2: surface the market read separately
         out["market_ros"] = pool["_ros_market"].round(1)
         out["market_rank_pct"] = pool["rank_pct_val"].round(1)
@@ -813,7 +906,7 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
 
     for col in ["fpg_regressed", "win_now_score", "dynasty_score", "dynasty_minus_win_now",
                 "sample_confidence", "estimated_games", "ip", "ip_pct", "whip", "k_per_9", "qs_rate",
-                "vor", "recent_fpg", "hot_cold"]:
+                "vor", "recent_fpg", "hot_cold", "forward_fpg", "ros_proj", "ros_vor"]:
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors="coerce").round(2)
 
