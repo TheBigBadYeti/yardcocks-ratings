@@ -175,6 +175,19 @@ CONFIG = {
         # forward VOR measures ROS value AT FULL HEALTH; current-injury risk is the
         # news layer's job (an overlay), not a crude flat haircut baked in here.
     },
+
+    # --- production-vs-market gap (the edge-finder) -------------------------
+    #   Contrast forward value (ros_vor) against the market's price (roster% +
+    #   overall rank). Positive gap = field prices a player below his forward
+    #   value (buy/claim); negative = above (sell). Uses ros_vor so it's
+    #   forward-vs-forward -- else every injured star reads as a false sell.
+    "market_gap": {                                       # CALIBRATE
+        "ros_weight": 0.6, "rank_weight": 0.4,   # market-price composite (roster% / rank)
+        "min_fpts": 25.0,        # real-production floor to be judged at all
+        "signal_threshold": 20,  # |gap| (percentile points) for a BUY/SELL flag
+        "buy_max_ros": 60.0,     # a buy must be reasonably available
+        "sell_min_ros": 75.0,    # a sell must be genuinely well-rostered
+    },
 }
 
 MISSING_TOKENS = {"", "-", "--", "nan", "none", "n/a", "na"}
@@ -826,6 +839,46 @@ def compute_forward_vor(pool):
     return pool, repl, team_remaining
 
 
+def compute_market_gap(pool):
+    """Production-vs-market: contrast forward value (ros_vor) with the market's
+    price (roster% + overall rank). market_gap > 0 -> the field prices a player
+    BELOW his forward value (buy / claim); < 0 -> above (sell). Forward-vs-forward
+    by design -- the market prices in injury return, so value must too, or every
+    hurt star reads as a false sell. A real-production floor keeps phantom
+    high-roster%/zero-production rows out. Parallel lens; modifies no score.
+    market_signal gates the raw gap into BUY / SELL / '' so below-replacement
+    noise is never called a buy. (Two-way players are mis-valued upstream -- the
+    engine picks one role -- so their signal is unreliable; read with care.)
+    """
+    mg = CONFIG["market_gap"]
+    pool["market_gap"] = np.nan
+    pool["market_signal"] = ""
+    inpool = pool["_inpool"] if "_inpool" in pool.columns else pd.Series(True, index=pool.index)
+    pop = inpool & pool["ros_vor"].notna() & (pool["fpts_num"].fillna(0) >= mg["min_fpts"])
+    sub = pool[pop]
+    if not len(sub):
+        return pool
+    value_pct = sub["ros_vor"].rank(pct=True) * 100
+    rankpct = sub["rkov_num"].map(rank_pct_from_rkov)
+    market_raw = mg["ros_weight"] * sub["ros_num"].fillna(0) + mg["rank_weight"] * rankpct
+    market_pct = market_raw.rank(pct=True) * 100
+    gap = (value_pct - market_pct).round(0)
+    pool.loc[pop, "market_gap"] = gap.values
+
+    ros = sub["ros_num"].fillna(0)
+    # Label the MISPRICING DIRECTION, not an action. UNDERVALUED + available = a
+    # claim; UNDERVALUED + rostered = a buy-low target. OVERVALUED + you own him =
+    # sell-high candidate; OVERVALUED you don't = don't acquire. A rostered star
+    # flagged OVERVALUED may still be a buy-low if recency/news shows a rebound --
+    # the gap is current production vs market price, not a verdict.
+    sig = np.where((gap >= mg["signal_threshold"]) & (sub["ros_vor"] > 0)
+                   & (ros < mg["buy_max_ros"]), "UNDERVALUED",
+          np.where((gap <= -mg["signal_threshold"]) & (ros >= mg["sell_min_ros"]),
+                   "OVERVALUED", ""))
+    pool.loc[pop, "market_signal"] = sig
+    return pool
+
+
 # --------------------------------------------------------------------------
 # run
 # --------------------------------------------------------------------------
@@ -861,6 +914,9 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
     print(f"[forward] team games remaining~{team_rem:.0f}; projected-VOR replacement: " + ", ".join(
         f"{k}={fvor_repl[k]:.0f}" for k in CONFIG["vor_startable_slots"]
         if k in fvor_repl and not pd.isna(fvor_repl[k])))
+    pool = compute_market_gap(pool)
+    _sig = pool["market_signal"].value_counts()
+    print(f"[market] undervalued={_sig.get('UNDERVALUED', 0)}  overvalued={_sig.get('OVERVALUED', 0)}")
 
     out_cols = {
         c["player"]: "player", c["team"]: "team", c["position"]: "position",
@@ -896,6 +952,10 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
 
     for src, dst in [("forward_fpg", "forward_fpg"), ("remaining_games", "remaining_games"),
                      ("ros_proj", "ros_proj"), ("ros_vor", "ros_vor")]:   # forward-looking value
+        if src in pool.columns:
+            out[dst] = pool[src]
+
+    for src, dst in [("market_gap", "market_gap"), ("market_signal", "market_signal")]:
         if src in pool.columns:
             out[dst] = pool[src]
 
