@@ -1,8 +1,10 @@
 # CLAUDE.md — Yardcocks & Beyond ratings engine
 
 Operational brief, auto-loaded every session. **For the full formula spec, read
-`SYSTEM_SPEC.md` before touching any scoring logic.** This file is the short
-version: what to do, what not to break.
+`SYSTEM_SPEC.md` before touching any scoring logic. Read `docs/SYSTEM_STATE.md`
+for the value-layer stack, design decisions, known limitations, and roadmap before
+changing the engine or acting on its outputs.** This file is the short version:
+what to do, what not to break.
 
 ## Working style
 Be a rigorous, honest collaborator. Challenge weak ideas, flag risks and flawed assumptions,
