@@ -172,6 +172,11 @@ CONFIG = {
         "fulltime_hitter_rate": 0.92,    # healthy regular's share of remaining team games
         "starts_per_team_games": 0.20,   # ~1 start per 5 team games
         "rp_appear_rate": 0.45,          # reliever appearances per remaining team game
+        # hitter play-time adjustment: scale remaining games by RECENT usage so
+        # platoon/part-time bats don't project as full-timers. Recent (not season)
+        # usage = current role, so a returning starter isn't penalized; no recent
+        # data -> full-time. Pitchers exempt (cadence already in the role factor).
+        "play_rate": {"min_sample": 8, "floor": 0.4},
         # forward VOR measures ROS value AT FULL HEALTH; current-injury risk is the
         # news layer's job (an overlay), not a crude flat haircut baked in here.
     },
@@ -816,7 +821,23 @@ def compute_forward_vor(pool):
             return team_remaining * fv["rp_appear_rate"]
         return team_remaining * fv["starts_per_team_games"]     # SP and SP/RP
 
-    pool["remaining_games"] = np.round(pool["role"].map(role_remaining), 1)
+    base_rem = pool["role"].map(role_remaining)
+    # play-rate (hitters only): scale remaining games by RECENT usage so platoon /
+    # part-time bats don't project as full-timers. Recent usage = current role, so
+    # a returning starter (high recent play) isn't penalized; a currently-injured
+    # bat with no recent games falls back to full-time (value at full health).
+    pr = fv.get("play_rate", {})
+    play_rate = np.ones(len(pool))
+    if "recent_games" in pool.columns and pool["recent_games"].notna().any():
+        rg = pool["recent_games"]
+        rh = rg[pool["pool_group"] == "H"].dropna()
+        win_team = float(np.nanpercentile(rh, 98)) if len(rh) else 0.0
+        if win_team > 0:
+            rate = np.clip(rg.values / win_team, pr.get("floor", 0.4), 1.0)
+            hmask = (pool["pool_group"] == "H").values & (rg.fillna(0).values >= pr.get("min_sample", 8))
+            play_rate = np.where(hmask, rate, 1.0)
+    pool["play_rate"] = np.round(play_rate, 2)
+    pool["remaining_games"] = np.round(base_rem * play_rate, 1)
     pool["ros_proj"] = np.round(pool["forward_fpg"] * pool["remaining_games"], 1)
 
     # --- VOR on the projection (same replacement logic, fed projected points) --
@@ -834,7 +855,7 @@ def compute_forward_vor(pool):
             return np.nan
         return row["ros_proj"] - min(repl[t] for t in ts)       # best (scarcest) position
     pool["ros_vor"] = pool.apply(_rv, axis=1).round(1)
-    for col in ["forward_fpg", "remaining_games", "ros_proj", "ros_vor"]:
+    for col in ["forward_fpg", "remaining_games", "ros_proj", "ros_vor", "play_rate"]:
         pool.loc[~not_minors, col] = np.nan
     return pool, repl, team_remaining
 
@@ -950,7 +971,8 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
         if src in pool.columns:
             out[dst] = pool[src]
 
-    for src, dst in [("forward_fpg", "forward_fpg"), ("remaining_games", "remaining_games"),
+    for src, dst in [("forward_fpg", "forward_fpg"), ("play_rate", "play_rate"),
+                     ("remaining_games", "remaining_games"),
                      ("ros_proj", "ros_proj"), ("ros_vor", "ros_vor")]:   # forward-looking value
         if src in pool.columns:
             out[dst] = pool[src]
