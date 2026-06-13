@@ -43,16 +43,26 @@ Run these steps in order. Do not skip steps or reorder them.
    Confirm the output line shows ~10k players scored and Kipp roster = 40.
    If the counts are far off, stop and report before committing.
 
-6. **Commit and push.**
+6. **Snapshot the ratings to history.**
+   Copy `data/processed/current_player_ratings.csv` to
+   `data/history/ratings_YYYY-MM-DD.csv` (today's date). This is the
+   historical record; processed outputs are no longer committed directly.
    ```
-   git add -A
+   cp data/processed/current_player_ratings.csv data/history/ratings_YYYY-MM-DD.csv
+   ```
+
+7. **Commit and push.**
+   ```
+   git add data/raw/ data/history/ratings_YYYY-MM-DD.csv
    git commit -m "data refresh YYYY-MM-DD"
    git push
    ```
-   Use today's actual date in the commit message. End state: GitHub has only
-   this week's raw CSVs (last week's are gone) plus the fresh processed ratings.
+   Use today's actual date in both the filename and commit message. End state:
+   GitHub has only this week's raw CSVs (last week's are gone) plus the new
+   history snapshot. Processed outputs in `data/processed/` are gitignored —
+   do not `git add -A` or you will try to commit them again.
 
-7. **Print the load summary.** After a successful push, output exactly this block:
+8. **Print the load summary.** After a successful push, output exactly this block:
 
    ```
    ── Load complete ──────────────────────────

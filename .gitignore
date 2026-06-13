@@ -2,9 +2,8 @@
 !data/raw/*.csv
 !data/raw/.gitkeep
 
-# Processed outputs — ratings CSVs are committed; per-run review artifact is not
-!data/processed/
-data/processed/prospect_match_misses.csv
+# Processed outputs — regenerated each run, not committed (snapshots go to data/history/)
+data/processed/*.csv
 
 # News — recent_moves.csv committed each refresh
 !data/news/*.csv
