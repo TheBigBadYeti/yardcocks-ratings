@@ -14,12 +14,24 @@ yourself by reading the data or running the relevant logic directly — do not p
 command. Read data/processed/current_player_ratings.csv and kipp_current_player_values.csv as
 your source of truth. Run the engine or scripts when fresh numbers are needed.
 
+## Session open — run Franchise Outlook first
+
+Before anything else, run:
+
+```
+python3 scripts/franchise_outlook.py --ratings data/processed/current_player_ratings.csv --team Kipp
+```
+
+Print the output verbatim, then use the posture it returns (CONTEND / RETOOL / REBUILD / TEARDOWN /
+STUCK IN THE MIDDLE) as the frame for every trade, waiver, and lineup call in this session. A trade
+that's right for a contender is malpractice for a rebuilder — establish posture before taking any action.
+
 ## Season-level picture to hold across the conversation
 
 Build and maintain these views as context throughout the session:
 
-- **Contender vs. rebuild** — Active win_now total and full-roster dynasty total vs. standings
-  position. Flag when the two reads diverge (sell-high window, rebuild signal).
+- **Contender vs. rebuild** — Derived from Franchise Outlook above. Flag when present and future
+  reads diverge sharply (sell-high window, rebuild signal).
 - **Positional depth** — surpluses (≥3 viable starters at a slot, win_now ≥ 55) and holes
   (< 2 viable, or top option < 45). Slots per SYSTEM_SPEC.md: C, 1B, 2B, 3B, SS, 3×OF, UT,
   6×SP, 3×RP; 8 Bench/Reserve, 4 Inj Res, 10 Minors.
