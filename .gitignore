@@ -13,6 +13,9 @@ data/processed/*.csv
 !data/recency/*.csv
 !data/recency/.gitkeep
 
+# Claude Code — machine-local settings stay off the repo
+.claude/settings.local.json
+
 # Python
 .venv/
 __pycache__/
