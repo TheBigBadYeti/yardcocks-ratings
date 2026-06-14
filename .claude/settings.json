@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/identify_exports.py)",
+      "Bash(python3 inseason_ratings_engine.py --rostered-hitters \"data/raw/Fantrax-Players-Yardcocks & Beyond \\(4\\).csv\" --rostered-pitchers \"data/raw/Fantrax-Players-Yardcocks & Beyond \\(5\\).csv\" --fa-hitters \"data/raw/Fantrax-Players-Yardcocks & Beyond \\(1\\).csv\" --fa-pitchers \"data/raw/Fantrax-Players-Yardcocks & Beyond \\(2\\).csv\" --team-roster \"data/raw/team_roster_real.csv\" --outdir data/processed --mode faithful --team Kipp)",
+      "Bash(python3 scripts/franchise_outlook.py --ratings data/processed/current_player_ratings.csv --team Kipp)",
+      "Bash(python3 scripts/fetch_recency.py)",
+      "Bash(git status)",
+      "Bash(git log --oneline -3)",
+      "Bash(git log --oneline -6)",
+      "Bash(git diff --cached --name-only)",
+      "Bash(git rev-parse HEAD)",
+      "Bash(git rev-parse origin/main)",
+      "Bash(git push)",
+      "Bash(git add data/raw/)",
+      "Bash(git add data/history/)",
+      "Bash(git add data/prospects/prospect_ranks.csv)",
+      "Bash(git add data/recency/recent_fpg.csv)",
+      "Bash(git add inseason_ratings_engine.py)",
+      "Bash(git add CLAUDE.md)",
+      "Bash(git add .gitignore)"
+    ]
+  }
+}
