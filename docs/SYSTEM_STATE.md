@@ -141,3 +141,15 @@ verdict trusts them.**
   strategy. It consumes; it doesn't run the weekly pipeline.
 - Because data and ratings are committed, any device that clones the repo has the
   full current picture.
+
+---
+
+## 7. Caching discipline — pull vs. rate
+
+Expensive external pulls (recency, schedule, career, prospects) live in
+standalone desktop fetch scripts that write committed CSV caches. The engine
+(re-rating) READS those caches and makes zero API calls — re-rating is free and
+never re-pulls. Cadences: recency every /refresh (daily); schedule weekly;
+prospects and career monthly — career history is near-immutable, so
+career_stats.csv is effectively pull-once. Career and prospect fetches stay OUT
+of the frequent /refresh loop.
