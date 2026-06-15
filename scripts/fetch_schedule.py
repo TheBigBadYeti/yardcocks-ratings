@@ -37,11 +37,10 @@ def week_bounds(target, start_dow=WEEK_START_DOW):
     return start, start + dt.timedelta(days=6)
 
 
-def fetch_range(start, end, hydrate=True):
+def fetch_range(start, end, probables=False):
+    hyd = "probablePitcher,team" if probables else "team"
     url = (f"{API}?sportId=1&startDate={start:%Y-%m-%d}&endDate={end:%Y-%m-%d}"
-           "&gameType=R")
-    if hydrate:
-        url += "&hydrate=probablePitcher,team"
+           f"&gameType=R&hydrate={hyd}")
     return _get(url)
 
 
@@ -100,8 +99,8 @@ def main():
     wk_start, wk_end = week_bounds(target)
 
     try:
-        week_sched = fetch_range(wk_start, wk_end, hydrate=True)
-        rest_sched = fetch_range(target, season_end, hydrate=False)  # counts only
+        week_sched = fetch_range(wk_start, wk_end, probables=True)
+        rest_sched = fetch_range(target, season_end, probables=False)
     except (URLError, HTTPError) as e:
         sys.exit(f"[schedule] fetch failed ({getattr(e,'code','')} {e}). Run this on "
                  f"the DESKTOP - the MLB API 403s from the cloud VM.")
@@ -114,6 +113,8 @@ def main():
     n2 = sum(1 for r in probables.values() if len(r["dates"]) >= 2)
     print(f"[schedule] week {wk_start}..{wk_end}: {len(teams)} teams, "
           f"{sum(wk_games.values())//2} games this week")
+    if len(teams) != 30:
+        print(f"[schedule] WARNING: expected 30 teams, got {len(teams)}")
     print(f"[schedule] probables: {len(probables)} starters, {n2} with 2 starts")
     print(f"[schedule] wrote {tpath}")
     print(f"[schedule] wrote {ppath}")

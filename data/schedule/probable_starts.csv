@@ -79,6 +79,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 683004,Jack Leiter,TEX,1,2026-06-18
 657746,Joe Ryan,MIN,1,2026-06-18
 669358,Shane Baz,BAL,1,2026-06-18
+640455,Sean Manaea,NYM,1,2026-06-18
 677960,Ryan Weathers,NYY,1,2026-06-18
 680732,Sean Burke,CWS,1,2026-06-18
 527048,Martín Pérez,ATL,1,2026-06-18
@@ -88,3 +89,4 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 695076,Rhett Lowder,CIN,1,2026-06-19
 676440,Tanner Bibee,CLE,1,2026-06-19
 700241,Michael McGreevy,STL,1,2026-06-19
+642547,Freddy Peralta,NYM,1,2026-06-20
