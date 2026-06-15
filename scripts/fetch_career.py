@@ -37,17 +37,19 @@ def season_fp(stat, group):
     return fr.fp_pitch(stat, qs)
 
 
-def id_map(season):
-    """name(normalized) -> mlb_id, from current-season aggregates (both groups)."""
+def id_map(seasons):
+    """name(normalized) -> mlb_id, from the last few seasons' aggregates (both
+    groups), so a player who missed the current year still resolves an id."""
     out = {}
-    for group in ("hitting", "pitching"):
-        url = (f"{API}/stats?stats=season&group={group}&season={season}"
-               f"&sportId=1&gameType=R&limit=5000")
-        for sp in fr._get(url).get("stats", [{}])[0].get("splits", []):
-            pid = sp.get("player", {}).get("id")
-            nm = sp.get("player", {}).get("fullName", "")
-            if pid and nm:
-                out[fr.norm_name(nm)] = pid
+    for season in seasons:
+        for group in ("hitting", "pitching"):
+            url = (f"{API}/stats?stats=season&group={group}&season={season}"
+                   f"&sportId=1&gameType=R&limit=5000")
+            for sp in fr._get(url).get("stats", [{}])[0].get("splits", []):
+                pid = sp.get("player", {}).get("id")
+                nm = sp.get("player", {}).get("fullName", "")
+                if pid and nm:
+                    out.setdefault(fr.norm_name(nm), pid)   # any season's id is fine
     return out
 
 
@@ -66,7 +68,27 @@ def year_by_year(pid, group):
         fp = round(season_fp(st, group), 1)
         rows.append({"season": sp.get("season"), "games": games, "fpts": fp,
                      "fpg": round(fp / games, 2) if games else 0.0})
-    return rows
+    # Traded-player seasons: yearByYear returns per-team splits PLUS a season
+    # total. Keep the total (its games == sum of the stints); if there's no
+    # total row, sum the stints into one season line.
+    from collections import defaultdict
+    by_season = defaultdict(list)
+    for r in rows:
+        by_season[r["season"]].append(r)
+    clean = []
+    for season, rs in by_season.items():
+        if len(rs) == 1:
+            clean.append(rs[0]); continue
+        rs_sorted = sorted(rs, key=lambda r: -r["games"])
+        top, rest = rs_sorted[0], rs_sorted[1:]
+        if abs(top["games"] - sum(r["games"] for r in rest)) < 1.0:
+            clean.append(top)                                # top is the total
+        else:
+            g = sum(r["games"] for r in rs)
+            fp = round(sum(r["fpts"] for r in rs), 1)
+            clean.append({"season": season, "games": g, "fpts": fp,
+                          "fpg": round(fp / g, 2) if g else 0.0})
+    return sorted(clean, key=lambda r: r["season"])
 
 
 def main():
@@ -83,11 +105,12 @@ def main():
     if a.team:
         df = df[df["owner_status"].astype(str).str.fullmatch(a.team, case=False, na=False)]
     elif a.rostered_only:
-        df = df[~df["owner_status"].fillna("FA").astype(str).isin(["FA", "nan", ""])]
+        df = df[~df["owner_status"].astype(str).isin(["FA", "nan", ""])]
     df = df[df["roster_status"].astype(str).str.lower() != "minors"]   # MLB history only
 
-    print(f"[career] resolving ids for season {a.season} ...")
-    ids = id_map(a.season)
+    seasons = [str(int(a.season) - k) for k in range(3)]   # current + 2 prior
+    print(f"[career] resolving ids across seasons {seasons} ...")
+    ids = id_map(seasons)
 
     os.makedirs(a.outdir, exist_ok=True)
     out = os.path.join(a.outdir, "career_stats.csv")
