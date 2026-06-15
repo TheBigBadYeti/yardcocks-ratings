@@ -14,12 +14,12 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 678906,Kai-Wei Teng,HOU,1,2026-06-15
 623454,Drew Anderson,DET,1,2026-06-15
 669194,Ryne Nelson,AZ,1,2026-06-15
-700712,Walbert Ureña,LAA,1,2026-06-15
+700712,Walbert UreÃ±a,LAA,1,2026-06-15
 669372,J.T. Ginn,ATH,1,2026-06-15
 683003,Jared Jones,PIT,1,2026-06-15
 641778,Eric Lauer,LAD,1,2026-06-15
 607259,Nick Martinez,TB,1,2026-06-15
-666200,Jesús Luzardo,PHI,1,2026-06-16
+666200,JesÃºs Luzardo,PHI,1,2026-06-16
 663969,Tyler Phillips,MIA,1,2026-06-16
 656492,Foster Griffin,WSH,1,2026-06-16
 608379,Michael Wacha,KC,1,2026-06-16
@@ -62,7 +62,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 593958,Eduardo Rodriguez,AZ,1,2026-06-17
 691951,Sam Aldegheri,LAA,1,2026-06-17
 687562,Jake Bennett,BOS,1,2026-06-17
-607074,Carlos Rodón,NYY,1,2026-06-17
+607074,Carlos RodÃ³n,NYY,1,2026-06-17
 641743,Anthony Kay,CWS,1,2026-06-17
 702275,JR Ritchie,ATL,1,2026-06-17
 592662,Robbie Ray,SF,1,2026-06-17
@@ -82,7 +82,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 640455,Sean Manaea,NYM,1,2026-06-18
 677960,Ryan Weathers,NYY,1,2026-06-18
 680732,Sean Burke,CWS,1,2026-06-18
-527048,Martín Pérez,ATL,1,2026-06-18
+527048,MartÃ­n PÃ©rez,ATL,1,2026-06-18
 694738,Landen Roupp,SF,1,2026-06-18
 669461,Matthew Liberatore,STL,1,2026-06-18
 669373,Tarik Skubal,DET,1,2026-06-19
