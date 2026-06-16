@@ -33,6 +33,7 @@ RECENCY_W = [3, 2, 1]
 THIN_GAMES = {"H": 250, "SP": 60, "RP": 150, "SP/RP": 100}   # games for full confidence
 GAMES_YR = {"H": 150, "SP": 30, "RP": 65, "SP/RP": 45}        # season games/appearances by role
 TEAM_ALIAS = {"CHW": "CWS", "OAK": "ATH", "AZ": "ARI", "WAS": "WSH"}
+GAP_THRESH = 15   # |dynasty_gap| (0-100 pts) to flag a model-vs-consensus disagreement
 
 # aging multipliers vs peak=1.0, linearly interpolated between anchors
 HIT_ANCHORS = [(21, 0.85), (25, 0.98), (27, 1.00), (30, 0.96), (32, 0.90),
@@ -96,6 +97,7 @@ def main():
     ap.add_argument("--horizon", type=int, default=HORIZON)
     ap.add_argument("--discount", type=float, default=DISCOUNT)
     ap.add_argument("--outdir", default="data/processed")
+    ap.add_argument("--consensus", default="data/consensus/consensus_ranks.csv")
     a = ap.parse_args()
 
     rt = pd.read_csv(a.ratings, encoding="utf-8")
@@ -144,16 +146,73 @@ def main():
     df["dynasty_asset_value"] = pct_rank(asset_raw)
     df["proj_stream"] = [";".join(map(str, s)) for s in stream0]
 
+    # --- consensus anchor: contrast OUR asset value vs external dynasty ECR ----
+    # Source-agnostic: reads any CSV with a name column + a rank column. Robust
+    # feed is a manual FantasyPros MLB-dynasty CSV (or KTC) refreshed ~monthly,
+    # same pattern as prospect_ranks.csv. Missing file -> gap simply stays blank.
+    df["consensus_rank"] = np.nan
+    df["consensus_value"] = np.nan
+    df["dynasty_gap"] = np.nan
+    df["dynasty_signal"] = "NO_CONSENSUS"
+    if a.consensus and os.path.exists(a.consensus):
+        cs = pd.read_csv(a.consensus, encoding="utf-8")
+        rcol = next((c for c in cs.columns
+                     if c.strip().lower() in ("consensus_rank", "rank", "rk", "ecr")), None)
+        ncol = next((c for c in cs.columns
+                     if c.strip().lower() == "name" or "player" in c.strip().lower()), None)
+        if rcol and ncol:
+            # FantasyPros names can carry a trailing "(TEAM - POS)" -> strip it
+            cs["k"] = (cs[ncol].astype(str).str.replace(r"\s*\(.*\)\s*$", "", regex=True)
+                       .map(norm_name))
+            cs[rcol] = pd.to_numeric(cs[rcol], errors="coerce")
+            cs = (cs.dropna(subset=[rcol]).sort_values(rcol)
+                    .drop_duplicates("k", keep="first"))   # dup names -> best rank
+            n = max(len(cs), 1)
+            df["consensus_rank"] = df["player"].map(norm_name).map(
+                dict(zip(cs["k"], cs[rcol])))
+            # rank -> 0-100 (higher=better), same orientation as dynasty_asset_value
+            df["consensus_value"] = (100.0 * (1.0 - (df["consensus_rank"] - 1.0)
+                                              / max(n - 1, 1))).clip(0, 100).round(1)
+            df["dynasty_gap"] = (df["dynasty_asset_value"] - df["consensus_value"]).round(1)
+
+            def _sig(g):
+                if pd.isna(g):
+                    return "NO_CONSENSUS"
+                if g >= GAP_THRESH:
+                    return "BUY_LOW"     # we rate him well ABOVE market
+                if g <= -GAP_THRESH:
+                    return "SELL_HIGH"   # market rates him well above us
+                return "ALIGNED"
+            df["dynasty_signal"] = df["dynasty_gap"].map(_sig)
+            matched = int(df["consensus_rank"].notna().sum())
+            print(f"[asset] consensus matched {matched}/{len(df)} vs {n}-player ECR "
+                  f"(gap thresh +/-{GAP_THRESH})")
+        else:
+            print("[asset] consensus file present but no name/rank columns; skipping gap")
+    else:
+        print(f"[asset] no consensus file at {a.consensus!r}; dynasty_gap blank "
+              "(drop a FantasyPros MLB-dynasty CSV there to enable)")
+
     df = df.sort_values("dynasty_asset_value", ascending=False)
     os.makedirs(a.outdir, exist_ok=True)
     out = os.path.join(a.outdir, "dynasty_asset_values.csv")
     df[["player", "team", "role", "age", "career_baseline", "asset_raw",
-        "dynasty_asset_value", "proj_stream"]].to_csv(out, index=False)
+        "dynasty_asset_value", "proj_stream", "consensus_rank", "consensus_value",
+        "dynasty_gap", "dynasty_signal"]].to_csv(out, index=False)
     print(f"[asset] valued {len(df)} players with MLB history -> {out}")
     print(f"[asset] horizon={a.horizon}y discount={a.discount}")
     print("\nTop 12 dynasty assets:")
     print(df.head(12)[["player", "team", "role", "age", "career_baseline",
                        "dynasty_asset_value"]].to_string(index=False))
+
+    flagged = df[df["dynasty_signal"].isin(["BUY_LOW", "SELL_HIGH"])]
+    if len(flagged):
+        flagged = flagged.reindex(flagged["dynasty_gap"].abs().sort_values(
+            ascending=False).index)
+        print("\nBiggest model-vs-consensus disagreements:")
+        print(flagged.head(15)[["player", "team", "age", "dynasty_asset_value",
+                                "consensus_rank", "dynasty_gap", "dynasty_signal"]]
+              .to_string(index=False))
 
 
 if __name__ == "__main__":
