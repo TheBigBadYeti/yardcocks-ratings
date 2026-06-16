@@ -131,12 +131,13 @@ def main():
 
     # regress raw baseline toward role median for thin samples
     role_med = df.groupby("role")["raw_base"].median().to_dict()
-    base_reg, asset_raw, stream0 = [], [], []
+    base_reg, asset_raw, stream0, conf0 = [], [], [], []
     for _, r in df.iterrows():
         thin = THIN_GAMES.get(r["role"], 200)
         conf = min(r["games"] / thin, 1.0)
         b = r["raw_base"] * conf + role_med.get(r["role"], 0.0) * (1 - conf)
         base_reg.append(round(b, 2))
+        conf0.append(round(conf, 2))
         age = r["age"] if pd.notna(r["age"]) else 28
         tot, stream = project(b, float(age), r["is_p"], a.horizon, a.discount)
         asset_raw.append(round(tot * GAMES_YR.get(r["role"], 120), 0))   # projected total FP
@@ -145,6 +146,16 @@ def main():
     df["asset_raw"] = asset_raw
     df["dynasty_asset_value"] = pct_rank(asset_raw)
     df["proj_stream"] = [";".join(map(str, s)) for s in stream0]
+
+    # baseline confidence: how much real recent sample backs the baseline vs how
+    # much is median-regression filler. INFORMATIONAL, not a re-score -- a LOW here
+    # means "trust this number less," in EITHER direction (thin-sample rookie reads
+    # high, injury-wiped vet reads low; both are soft). Deliberately not a discount:
+    # discounting would wrongly bury injury returnees the model already underrates.
+    df["recent_games"] = df["games"].round(0)
+    df["baseline_confidence"] = conf0
+    df["confidence"] = pd.cut(df["baseline_confidence"], [-0.01, 0.35, 0.70, 1.01],
+                              labels=["LOW", "MED", "HIGH"]).astype(str)
 
     # --- consensus anchor: contrast OUR asset value vs external dynasty ECR ----
     # Source-agnostic: reads any CSV with a name column + a rank column. Robust
@@ -196,14 +207,15 @@ def main():
     df = df.sort_values("dynasty_asset_value", ascending=False)
     os.makedirs(a.outdir, exist_ok=True)
     out = os.path.join(a.outdir, "dynasty_asset_values.csv")
-    df[["player", "team", "role", "age", "career_baseline", "asset_raw",
-        "dynasty_asset_value", "proj_stream", "consensus_rank", "consensus_value",
-        "dynasty_gap", "dynasty_signal"]].to_csv(out, index=False)
+    df[["player", "team", "role", "age", "career_baseline", "recent_games",
+        "baseline_confidence", "confidence", "asset_raw", "dynasty_asset_value",
+        "proj_stream", "consensus_rank", "consensus_value", "dynasty_gap",
+        "dynasty_signal"]].to_csv(out, index=False)
     print(f"[asset] valued {len(df)} players with MLB history -> {out}")
     print(f"[asset] horizon={a.horizon}y discount={a.discount}")
     print("\nTop 12 dynasty assets:")
     print(df.head(12)[["player", "team", "role", "age", "career_baseline",
-                       "dynasty_asset_value"]].to_string(index=False))
+                       "confidence", "dynasty_asset_value"]].to_string(index=False))
 
     flagged = df[df["dynasty_signal"].isin(["BUY_LOW", "SELL_HIGH"])]
     if len(flagged):
@@ -211,8 +223,8 @@ def main():
             ascending=False).index)
         print("\nBiggest model-vs-consensus disagreements:")
         print(flagged.head(15)[["player", "team", "age", "dynasty_asset_value",
-                                "consensus_rank", "dynasty_gap", "dynasty_signal"]]
-              .to_string(index=False))
+                                "confidence", "consensus_rank", "dynasty_gap",
+                                "dynasty_signal"]].to_string(index=False))
 
 
 if __name__ == "__main__":
