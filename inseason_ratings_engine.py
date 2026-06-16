@@ -698,25 +698,38 @@ def compute_dynasty(pool):
                 + nm["rank"] * rank_pct + age_adj)
     af = CONFIG.get("asset_fold", {})
     alpha = np.zeros(len(pool))
+    is_minors_np = is_minors.to_numpy()
+    prospect_phase = np.ones(len(pool))   # 1.0 = full prospect bonus
     if af.get("enabled") and "dynasty_asset_value" in pool.columns:
         av = pd.to_numeric(pool["dynasty_asset_value"], errors="coerce")
         cf = pd.to_numeric(pool.get("baseline_confidence"), errors="coerce")
         alpha = (cf.fillna(0.0) * af.get("asset_max_weight", 0.60)).where(
             av.notna(), 0.0).to_numpy()
+        # alpha is only APPLIED on the non-minor path; zero it on minors so the
+        # diagnostic column stops implying the asset value is in play for them.
+        alpha = np.where(is_minors_np, 0.0, alpha)
         core = alpha * av.fillna(0.0).to_numpy() + (1 - alpha) * old_core
-        cf_np = cf.fillna(0.0).to_numpy()
-        prospect = np.where(av.notna().to_numpy(), prospect * (1 - cf_np), prospect)
+        # Prospect <-> asset handoff: a NON-minor who now carries a career asset
+        # value is graduating, so taper his scouting bonus by (1 - confidence) --
+        # full bonus while the MLB sample is thin, fading to zero as it fills in.
+        # Minors keep their full bonus (their asset value isn't used to replace it).
+        taper = (~is_minors_np) & av.notna().to_numpy()
+        prospect_phase = np.where(
+            taper, np.clip(1.0 - np.nan_to_num(cf.to_numpy()), 0.0, 1.0), 1.0)
     else:
         core = old_core
-    non_minor = core + prospect + dyn_pen
+    prospect_eff = prospect * prospect_phase
+    non_minor = core + prospect_eff + dyn_pen
     minor = (mn["base"] + mn["win_now"] * np.clip(pool["win_now_score"], 0, None)
-             + mn["ros"] * ros + mn["rank"] * rank_pct + age_adj + prospect + dyn_pen)
+             + mn["ros"] * ros + mn["rank"] * rank_pct + age_adj + prospect_eff + dyn_pen)
 
     pool["dynasty_score"] = np.clip(np.where(is_minors, minor, non_minor), 0, 100)
     pool["dynasty_minus_win_now"] = pool["dynasty_score"] - pool["win_now_score"]
     pool["asset_blend_alpha"] = np.round(alpha, 3)
+    pool["prospect_phase"] = np.round(prospect_phase, 3)
     pool["age_curve_val"] = age_adj
     pool["prospect_bonus"] = prospect
+    pool["prospect_bonus_applied"] = np.round(prospect_eff, 2)
     return pool
 
 
@@ -774,9 +787,11 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
     # career asset fold-in diagnostics (present only when the fold-in ran)
     for src, dst in [("dynasty_asset_value", "asset_value"),
                      ("asset_confidence", "asset_confidence"),
-                     ("baseline_confidence", "asset_conf_num"),
+                     ("baseline_confidence", "baseline_confidence"),
                      ("career_baseline", "career_baseline"),
                      ("asset_blend_alpha", "asset_blend_alpha"),
+                     ("prospect_phase", "prospect_phase"),
+                     ("prospect_bonus_applied", "prospect_bonus_applied"),
                      ("dynasty_gap", "dynasty_gap"),
                      ("dynasty_signal", "dynasty_signal")]:
         if src in pool.columns:
