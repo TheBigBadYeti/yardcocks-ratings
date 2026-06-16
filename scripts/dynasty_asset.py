@@ -27,7 +27,7 @@ import argparse, os, re, unicodedata
 import pandas as pd
 import numpy as np
 
-HORIZON = 5
+HORIZON = 7
 DISCOUNT = 0.97
 RECENCY_W = [3, 2, 1]
 THIN_GAMES = {"H": 250, "SP": 60, "RP": 150, "SP/RP": 100}   # games for full confidence
@@ -36,9 +36,9 @@ TEAM_ALIAS = {"CHW": "CWS", "OAK": "ATH", "AZ": "ARI", "WAS": "WSH"}
 
 # aging multipliers vs peak=1.0, linearly interpolated between anchors
 HIT_ANCHORS = [(21, 0.85), (25, 0.98), (27, 1.00), (30, 0.96), (32, 0.90),
-               (34, 0.80), (37, 0.62), (40, 0.50)]
+               (34, 0.80), (37, 0.60), (40, 0.38), (43, 0.15), (45, 0.00)]
 PIT_ANCHORS = [(22, 0.87), (24, 0.96), (26, 1.00), (29, 0.96), (31, 0.90),
-               (33, 0.81), (35, 0.68), (38, 0.50)]
+               (33, 0.81), (35, 0.66), (38, 0.40), (41, 0.15), (44, 0.00)]
 
 
 def norm_name(s):
