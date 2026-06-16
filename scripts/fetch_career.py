@@ -37,20 +37,44 @@ def season_fp(stat, group):
     return fr.fp_pitch(stat, qs)
 
 
-def id_map(seasons):
-    """name(normalized) -> mlb_id, from the last few seasons' aggregates (both
-    groups), so a player who missed the current year still resolves an id."""
-    out = {}
+# Fantrax -> MLB Stats API abbreviation aliases (for the team-disambiguation join)
+TEAM_ALIAS = {"CHW": "CWS", "OAK": "ATH", "AZ": "ARI", "WAS": "WSH"}
+
+
+def id_index(seasons):
+    """Build a team-aware id index from the last few seasons' aggregates, so
+    same-name players (e.g. the two Mason Millers) can be told apart by team.
+    Returns (by_name_team, by_name_unique):
+      by_name_team    : {(norm_name, mlb_team_abbrev): id}
+      by_name_unique  : {norm_name: id}  only when the name maps to ONE id
+    """
+    by_nt, seen = {}, {}
     for season in seasons:
         for group in ("hitting", "pitching"):
             url = (f"{API}/stats?stats=season&group={group}&season={season}"
-                   f"&sportId=1&gameType=R&limit=5000")
+                   f"&sportId=1&gameType=R&playerPool=All&limit=5000")
             for sp in fr._get(url).get("stats", [{}])[0].get("splits", []):
                 pid = sp.get("player", {}).get("id")
-                nm = sp.get("player", {}).get("fullName", "")
-                if pid and nm:
-                    out.setdefault(fr.norm_name(nm), pid)   # any season's id is fine
-    return out
+                nm = fr.norm_name(sp.get("player", {}).get("fullName", ""))
+                team = sp.get("team", {}).get("abbreviation")
+                if not (pid and nm):
+                    continue
+                if team:
+                    by_nt.setdefault((nm, team), pid)
+                seen.setdefault(nm, set()).add(pid)
+    by_name_unique = {nm: next(iter(ids)) for nm, ids in seen.items() if len(ids) == 1}
+    return by_nt, by_name_unique
+
+
+def resolve_id(name, team, by_nt, by_name_unique):
+    """Team-first resolution: (name, team) -> id; fall back to a unique name;
+    ambiguous name with no team match -> None (flagged for review)."""
+    nm = fr.norm_name(name)
+    t = str(team).strip()
+    t = TEAM_ALIAS.get(t, t)
+    if (nm, t) in by_nt:
+        return by_nt[(nm, t)]
+    return by_name_unique.get(nm)   # None if the name is ambiguous and team missed
 
 
 def year_by_year(pid, group):
@@ -110,24 +134,24 @@ def main():
 
     seasons = [str(int(a.season) - k) for k in range(3)]   # current + 2 prior
     print(f"[career] resolving ids across seasons {seasons} ...")
-    ids = id_map(seasons)
+    by_nt, by_name = id_index(seasons)
 
     os.makedirs(a.outdir, exist_ok=True)
     out = os.path.join(a.outdir, "career_stats.csv")
     n_players, n_rows, misses = 0, 0, []
     with open(out, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["mlb_id", "name", "group", "season", "games", "fpts", "fpg"])
+        w.writerow(["mlb_id", "name", "team", "group", "season", "games", "fpts", "fpg"])
         for _, r in df.iterrows():
             nm = r["player"]
-            pid = ids.get(fr.norm_name(nm))
+            pid = resolve_id(nm, r.get("team", ""), by_nt, by_name)
             if not pid:
                 misses.append(nm); continue
             group = "pitching" if str(r.get("role", "H")) != "H" else "hitting"
             rows = year_by_year(pid, group)
             for row in rows:
-                w.writerow([pid, nm, group, row["season"], row["games"],
-                            row["fpts"], row["fpg"]])
+                w.writerow([pid, nm, r.get("team", ""), group, row["season"],
+                            row["games"], row["fpts"], row["fpg"]])
             if rows:
                 n_players += 1; n_rows += len(rows)
 
