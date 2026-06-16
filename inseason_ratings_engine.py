@@ -704,6 +704,8 @@ def compute_dynasty(pool):
         alpha = (cf.fillna(0.0) * af.get("asset_max_weight", 0.60)).where(
             av.notna(), 0.0).to_numpy()
         core = alpha * av.fillna(0.0).to_numpy() + (1 - alpha) * old_core
+        cf_np = cf.fillna(0.0).to_numpy()
+        prospect = np.where(av.notna().to_numpy(), prospect * (1 - cf_np), prospect)
     else:
         core = old_core
     non_minor = core + prospect + dyn_pen
