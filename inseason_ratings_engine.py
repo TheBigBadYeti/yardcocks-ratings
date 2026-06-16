@@ -123,6 +123,20 @@ CONFIG = {
     # --- dynasty build -----------------------------------------------------
     "dynasty_non_minor": {"win_now": 0.54, "ros": 0.18, "rank": 0.10},
     "dynasty_minor": {"base": 24.0, "win_now": 0.15, "ros": 0.22, "rank": 0.10},
+    # --- career asset fold-in (dynasty_asset.py) ---------------------------
+    # For non-minor players WITH MLB history, the career+aging asset value is a
+    # richer estimate of future value than the win_now/age_curve backbone, so it
+    # progressively REPLACES that backbone. Weight = baseline_confidence *
+    # asset_max_weight, so a thin/injury-wiped sample leans back on the old core
+    # instead of overriding it (capped, never 100%, since ros/rank carry real
+    # market signal). Prospects (no career) and minors are untouched.
+    "asset_fold": {
+        "enabled": True,
+        "asset_max_weight": 0.60,   # cap on how much asset value can replace the core
+        "career_path": "data/career/career_stats.csv",
+        "consensus_path": "data/consensus/consensus_ranks.csv",
+        "horizon": 7, "discount": 0.97,
+    },
     # minors prospect bonus when no external rank: ros/100*15 + age*0.7, clip 2..18
     "prospect_fallback": {"ros_mult": 15.0, "age_mult": 0.7, "lo": 2.0, "hi": 18.0},
     # external MLB-Pipeline ranks (mlb.com/prospects). overall tiers, then org tiers.
@@ -133,7 +147,6 @@ CONFIG = {
         "grade_lo": -4.0, "grade_hi": 8.0, "matched_flat": 4.0,
     },
     "prospect_ranks_path": "prospect_ranks.csv",   # cache; refresh ~monthly
-    "recency_path": "recent_fpg.csv",              # trailing-window cache; refresh ~weekly
 
     # --- age curve: step thresholds (additive), separate H / P -------------
     #     (age <= threshold -> adjustment); missing age -> 0
@@ -146,53 +159,6 @@ CONFIG = {
     #     hitter/pitcher split exports). 0.0 = faithful (volume only via FPts);
     #     >0 blends an IP-percentile term into pitcher win-now.  # CALIBRATE
     "pitcher_ip_pct_weight": 0.0,
-
-    # --- value over replacement (VOR) --------------------------------------
-    #   League startable slots by position: 14 teams x lineup
-    #   (C,1B,2B,3B,SS,3xOF,UT,6xSP,3xRP). Replacement level at a position =
-    #   the season FPts of the player ranked (slots+1) among non-Minors players
-    #   eligible there. VOR is season-to-date (volume embedded, so hitters and
-    #   pitchers stay comparable). It is a PARALLEL value lens for now -- it does
-    #   not modify win_now/dynasty. Rest-of-season refinement arrives with the
-    #   recency layer. UT demand is folded into the position slots, not modeled
-    #   separately yet.  # CALIBRATE (slot counts are league structure, not Codex)
-    "vor_startable_slots": {"C": 14, "1B": 14, "2B": 14, "3B": 14, "SS": 14,
-                            "OF": 42, "SP": 84, "RP": 42},
-
-    # --- forward-looking value (rest-of-season projection) ------------------
-    #   Blend recent form with season rate, project over games remaining, then
-    #   VOR on the projection. Fixes the injured-star problem (value a player on
-    #   his rate going forward, not his depressed season-to-date total). Parallel
-    #   lens; does not modify win_now/dynasty/VOR. Constants are reasoned defaults
-    #   refined later by the schedule (remaining games) and news (injury) layers.
-    "forward_value": {                                    # CALIBRATE
-        "recent_full_games": 20,    # recent games at which recency earns full weight
-        "recent_max_weight": 0.5,   # recency never exceeds half the blended rate
-        "season_games": 162,
-        "fulltime_hitter_rate": 0.92,    # healthy regular's share of remaining team games
-        "starts_per_team_games": 0.20,   # ~1 start per 5 team games
-        "rp_appear_rate": 0.45,          # reliever appearances per remaining team game
-        # hitter play-time adjustment: scale remaining games by RECENT usage so
-        # platoon/part-time bats don't project as full-timers. Recent (not season)
-        # usage = current role, so a returning starter isn't penalized; no recent
-        # data -> full-time. Pitchers exempt (cadence already in the role factor).
-        "play_rate": {"min_sample": 8, "floor": 0.4},
-        # forward VOR measures ROS value AT FULL HEALTH; current-injury risk is the
-        # news layer's job (an overlay), not a crude flat haircut baked in here.
-    },
-
-    # --- production-vs-market gap (the edge-finder) -------------------------
-    #   Contrast forward value (ros_vor) against the market's price (roster% +
-    #   overall rank). Positive gap = field prices a player below his forward
-    #   value (buy/claim); negative = above (sell). Uses ros_vor so it's
-    #   forward-vs-forward -- else every injured star reads as a false sell.
-    "market_gap": {                                       # CALIBRATE
-        "ros_weight": 0.6, "rank_weight": 0.4,   # market-price composite (roster% / rank)
-        "min_fpts": 25.0,        # real-production floor to be judged at all
-        "signal_threshold": 20,  # |gap| (percentile points) for a BUY/SELL flag
-        "buy_max_ros": 60.0,     # a buy must be reasonably available
-        "sell_min_ros": 75.0,    # a sell must be genuinely well-rostered
-    },
 }
 
 MISSING_TOKENS = {"", "-", "--", "nan", "none", "n/a", "na"}
@@ -630,40 +596,6 @@ def attach_prospect_ranks(pool, path=None, misses_path=None):
     return pool
 
 
-def attach_recency(pool, path=None):
-    """Join trailing-window production (fetch_recency.py cache) by normalized name.
-
-    Adds recent_games, recent_fpts, recent_fpg, and hot_cold (recent FP/G minus
-    season FP/G; positive = trending up). This is a forward-looking SIGNAL only --
-    it does NOT modify win_now/dynasty here. It surfaces hot/cold context and is
-    the input the projection layer (next build) will use to make value
-    forward-looking. Missing cache -> columns stay NaN and the engine still runs.
-    """
-    import os
-    c = CONFIG["cols"]
-    path = path or CONFIG.get("recency_path")
-    if not (path and os.path.exists(path)):       # repo layout or flat working dir
-        for cand in ("data/recency/recent_fpg.csv", "recent_fpg.csv"):
-            if os.path.exists(cand):
-                path = cand
-                break
-    for col in ["recent_games", "recent_fpts", "recent_fpg", "hot_cold"]:
-        pool[col] = np.nan
-    if not path or not os.path.exists(path):
-        print(f"[recency] no cache at {path!r}; recency columns blank")
-        return pool
-    rec = pd.read_csv(path)
-    rec["k"] = rec["name"].map(_norm_name)
-    rec = rec.drop_duplicates("k", keep="first")
-    keys = pool[c["player"]].map(_norm_name)
-    for src in ["recent_games", "recent_fpts", "recent_fpg"]:
-        if src in rec.columns:
-            pool[src] = keys.map(dict(zip(rec["k"], pd.to_numeric(rec[src], errors="coerce"))))
-    pool["hot_cold"] = (pool["recent_fpg"] - pool["fpg_raw"]).round(2)
-    print(f"[recency] cache={len(rec)}  pool-matched={int(pool['recent_fpg'].notna().sum())}")
-    return pool
-
-
 def _prospect_bonus_row(overall, org, grade, is_minor, ros, age_adj):
     pr = CONFIG["prospect_rank"]; pf = CONFIG["prospect_fallback"]
     bonus, matched = 0.0, False
@@ -683,6 +615,49 @@ def _prospect_bonus_row(overall, org, grade, is_minor, ros, age_adj):
         return float(np.clip(ros / 100 * pf["ros_mult"] + age_adj * pf["age_mult"],
                              pf["lo"], pf["hi"]))
     return 0.0
+
+
+def attach_asset_values(pool):
+    """Compute career+aging asset values (scripts/dynasty_asset.py) and merge
+    dynasty_asset_value / baseline_confidence / dynasty_gap onto the pool so
+    compute_dynasty can fold them into dynasty_score. Degrades gracefully: any
+    failure (no career cache, import error) leaves the columns absent and
+    dynasty_score falls back to the base formula."""
+    af = CONFIG.get("asset_fold", {})
+    c = CONFIG["cols"]
+    if not af.get("enabled"):
+        return pool
+    try:
+        import sys as _sys
+        sd = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts")
+        if sd not in _sys.path:
+            _sys.path.insert(0, sd)
+        import dynasty_asset as _da
+        rt = pd.DataFrame({"player": pool[c["player"]], "team": pool[c["team"]],
+                           "role": pool["role"], "age": pool["age_num"]})
+        adf = _da.compute_asset_values(rt, af.get("career_path"),
+                                       af.get("consensus_path"),
+                                       af.get("horizon", 7), af.get("discount", 0.97),
+                                       verbose=True)
+        if adf is None or adf.empty:
+            print("[asset-fold] no asset values produced; using base dynasty formula")
+            return pool
+        adf["_mk"] = adf["player"].astype(str) + "|" + adf["team"].astype(str)
+        mk = pool[c["player"]].astype(str) + "|" + pool[c["team"]].astype(str)
+        for src, dst in [("dynasty_asset_value", "dynasty_asset_value"),
+                         ("baseline_confidence", "baseline_confidence"),
+                         ("confidence", "asset_confidence"),
+                         ("career_baseline", "career_baseline"),
+                         ("recent_games", "recent_games"),
+                         ("dynasty_gap", "dynasty_gap"),
+                         ("dynasty_signal", "dynasty_signal")]:
+            if src in adf.columns:
+                pool[dst] = mk.map(dict(zip(adf["_mk"], adf[src])))
+        n = int(pd.to_numeric(pool["dynasty_asset_value"], errors="coerce").notna().sum())
+        print(f"[asset-fold] merged asset value onto {n} players with MLB history")
+    except Exception as e:
+        print(f"[asset-fold] skipped ({type(e).__name__}: {e}); base dynasty formula")
+    return pool
 
 
 def compute_dynasty(pool):
@@ -713,190 +688,33 @@ def compute_dynasty(pool):
         for ov, og, gr, mi, r, a in zip(overall, org, grade, is_minors, ros, age_adj)
     ])
 
-    non_minor = (nm["win_now"] * pool["win_now_score"] + nm["ros"] * ros
-                 + nm["rank"] * rank_pct + age_adj + prospect + dyn_pen)
+    # Future-value backbone (win-now + market + crude age curve). The career
+    # asset value is a richer estimate of this same thing, so for non-minor
+    # players WITH MLB history it progressively REPLACES the backbone, weighted
+    # by baseline confidence (thin/injury-wiped samples lean back on the backbone
+    # rather than overriding it). av is a percentile within the established-player
+    # pool; blending it with the backbone is an approximate but monotonic mix.
+    old_core = (nm["win_now"] * pool["win_now_score"] + nm["ros"] * ros
+                + nm["rank"] * rank_pct + age_adj)
+    af = CONFIG.get("asset_fold", {})
+    alpha = np.zeros(len(pool))
+    if af.get("enabled") and "dynasty_asset_value" in pool.columns:
+        av = pd.to_numeric(pool["dynasty_asset_value"], errors="coerce")
+        cf = pd.to_numeric(pool.get("baseline_confidence"), errors="coerce")
+        alpha = (cf.fillna(0.0) * af.get("asset_max_weight", 0.60)).where(
+            av.notna(), 0.0).to_numpy()
+        core = alpha * av.fillna(0.0).to_numpy() + (1 - alpha) * old_core
+    else:
+        core = old_core
+    non_minor = core + prospect + dyn_pen
     minor = (mn["base"] + mn["win_now"] * np.clip(pool["win_now_score"], 0, None)
              + mn["ros"] * ros + mn["rank"] * rank_pct + age_adj + prospect + dyn_pen)
 
     pool["dynasty_score"] = np.clip(np.where(is_minors, minor, non_minor), 0, 100)
     pool["dynasty_minus_win_now"] = pool["dynasty_score"] - pool["win_now_score"]
+    pool["asset_blend_alpha"] = np.round(alpha, 3)
     pool["age_curve_val"] = age_adj
     pool["prospect_bonus"] = prospect
-    return pool
-
-
-# --------------------------------------------------------------------------
-# value over replacement (VOR)  -- season-total points above the startable line
-# --------------------------------------------------------------------------
-def compute_vor(pool):
-    """Value over replacement in SEASON-TOTAL fantasy points.
-
-    Replacement level at a position = the season FPts of the player ranked just
-    below the league's startable depth there (slots + 1), among non-Minors
-    players eligible at that position. A player's VOR = his total FPts minus the
-    replacement level at his best-eligible position (the one giving the highest
-    VOR). Using season totals (not a per-game rate) keeps hitters and pitchers on
-    a comparable scale, since totals embed playing-time volume.
-
-    This is a PARALLEL value lens: it does not modify win_now or dynasty. It is
-    left blank for Minors (no MLB production to measure) and for players with no
-    eligible scoring position. Returns (pool, replacement_levels_dict).
-    """
-    c = CONFIG["cols"]
-    slots = CONFIG["vor_startable_slots"]
-    not_minors = ~pool["roster_status_norm"].str.contains("Minor", case=False, na=False)
-
-    def _toks(s):
-        return [t.strip().upper() for t in str(s).split(",") if t.strip()]
-
-    repl = {}
-    for pos, s in slots.items():
-        elig = pool[not_minors & pool[c["position"]].map(lambda x: pos in _toks(x))]
-        vals = np.sort(elig["fpts_num"].dropna().values)[::-1]
-        if len(vals) > s:
-            repl[pos] = float(vals[s])
-        elif len(vals):
-            repl[pos] = float(vals[-1])
-        else:
-            repl[pos] = np.nan
-
-    def _vor(row):
-        if pd.isna(row["fpts_num"]):
-            return np.nan, ""
-        ts = [t for t in _toks(row[c["position"]]) if t in repl and not pd.isna(repl[t])]
-        if not ts:
-            return np.nan, ""
-        best = max(ts, key=lambda t: row["fpts_num"] - repl[t])
-        return row["fpts_num"] - repl[best], best
-
-    res = pool.apply(_vor, axis=1)
-    pool["vor"] = [r[0] for r in res]
-    pool["vor_pos"] = [r[1] for r in res]
-    pool.loc[~not_minors, "vor"] = np.nan          # VOR is a current-MLB-value metric
-    pool.loc[~not_minors, "vor_pos"] = ""
-    return pool, repl
-
-
-def compute_forward_vor(pool):
-    """Forward-looking value: project a blended (recent + season) rate over the
-    games remaining, then run VOR on that projection. A player is valued on his
-    rate GOING FORWARD, not his depressed season-to-date total -- which is what
-    un-breaks injured/returning stars. Parallel lens; does not modify
-    win_now/dynasty/season-VOR. Blank for Minors. Remaining-games and the injury
-    haircut are league estimates refined later by the schedule / news layers.
-    Returns (pool, replacement_dict, team_games_remaining).
-    """
-    c = CONFIG["cols"]
-    fv = CONFIG["forward_value"]
-    slots = CONFIG["vor_startable_slots"]
-    not_minors = ~pool["roster_status_norm"].str.contains("Minor", case=False, na=False)
-
-    def _toks(s):
-        return [t.strip().upper() for t in str(s).split(",") if t.strip()]
-
-    # --- forward rate: blend recent_fpg with the engine's (regressed) season rate
-    season_rate = pool["fpg_regressed"].fillna(0.0)
-    if "recent_fpg" in pool.columns:
-        rg = pool["recent_games"].fillna(0.0)
-        w = fv["recent_max_weight"] * np.clip(rg / fv["recent_full_games"], 0.0, 1.0)
-        w = np.where(pool["recent_fpg"].notna(), w, 0.0)     # no recent data -> season only
-        forward = w * pool["recent_fpg"].fillna(0.0) + (1 - w) * season_rate
-    else:
-        forward = season_rate
-    pool["forward_fpg"] = np.round(forward, 2)
-
-    # --- remaining games: calendar x role factor (ROS value at full health) ----
-    #   team games played ~ the most-played relevant hitter; use the in-pool set so
-    #   the thousands of zero-game free agents don't drag the estimate down.
-    inpool_h = pool["_inpool"] & (pool["pool_group"] == "H") if "_inpool" in pool.columns \
-        else (pool["pool_group"] == "H")
-    hg = pool.loc[inpool_h & not_minors, "estimated_games"]
-    team_played = float(np.nanpercentile(hg, 95)) if len(hg.dropna()) else 0.0
-    team_remaining = max(fv["season_games"] - team_played, 0.0)
-
-    def role_remaining(role):
-        if role == "H":
-            return team_remaining * fv["fulltime_hitter_rate"]
-        if role == "RP":
-            return team_remaining * fv["rp_appear_rate"]
-        return team_remaining * fv["starts_per_team_games"]     # SP and SP/RP
-
-    base_rem = pool["role"].map(role_remaining)
-    # play-rate (hitters only): scale remaining games by RECENT usage so platoon /
-    # part-time bats don't project as full-timers. Recent usage = current role, so
-    # a returning starter (high recent play) isn't penalized; a currently-injured
-    # bat with no recent games falls back to full-time (value at full health).
-    pr = fv.get("play_rate", {})
-    play_rate = np.ones(len(pool))
-    if "recent_games" in pool.columns and pool["recent_games"].notna().any():
-        rg = pool["recent_games"]
-        rh = rg[pool["pool_group"] == "H"].dropna()
-        win_team = float(np.nanpercentile(rh, 98)) if len(rh) else 0.0
-        if win_team > 0:
-            rate = np.clip(rg.values / win_team, pr.get("floor", 0.4), 1.0)
-            hmask = (pool["pool_group"] == "H").values & (rg.fillna(0).values >= pr.get("min_sample", 8))
-            play_rate = np.where(hmask, rate, 1.0)
-    pool["play_rate"] = np.round(play_rate, 2)
-    pool["remaining_games"] = np.round(base_rem * play_rate, 1)
-    pool["ros_proj"] = np.round(pool["forward_fpg"] * pool["remaining_games"], 1)
-
-    # --- VOR on the projection (same replacement logic, fed projected points) --
-    repl = {}
-    for pos, k in slots.items():
-        elig = pool[not_minors & pool[c["position"]].map(lambda x: pos in _toks(x))]
-        vals = np.sort(elig["ros_proj"].dropna().values)[::-1]
-        repl[pos] = float(vals[k]) if len(vals) > k else (float(vals[-1]) if len(vals) else np.nan)
-
-    def _rv(row):
-        if pd.isna(row["ros_proj"]):
-            return np.nan
-        ts = [t for t in _toks(row[c["position"]]) if t in repl and not pd.isna(repl[t])]
-        if not ts:
-            return np.nan
-        return row["ros_proj"] - min(repl[t] for t in ts)       # best (scarcest) position
-    pool["ros_vor"] = pool.apply(_rv, axis=1).round(1)
-    for col in ["forward_fpg", "remaining_games", "ros_proj", "ros_vor", "play_rate"]:
-        pool.loc[~not_minors, col] = np.nan
-    return pool, repl, team_remaining
-
-
-def compute_market_gap(pool):
-    """Production-vs-market: contrast forward value (ros_vor) with the market's
-    price (roster% + overall rank). market_gap > 0 -> the field prices a player
-    BELOW his forward value (buy / claim); < 0 -> above (sell). Forward-vs-forward
-    by design -- the market prices in injury return, so value must too, or every
-    hurt star reads as a false sell. A real-production floor keeps phantom
-    high-roster%/zero-production rows out. Parallel lens; modifies no score.
-    market_signal gates the raw gap into BUY / SELL / '' so below-replacement
-    noise is never called a buy. (Two-way players are mis-valued upstream -- the
-    engine picks one role -- so their signal is unreliable; read with care.)
-    """
-    mg = CONFIG["market_gap"]
-    pool["market_gap"] = np.nan
-    pool["market_signal"] = ""
-    inpool = pool["_inpool"] if "_inpool" in pool.columns else pd.Series(True, index=pool.index)
-    pop = inpool & pool["ros_vor"].notna() & (pool["fpts_num"].fillna(0) >= mg["min_fpts"])
-    sub = pool[pop]
-    if not len(sub):
-        return pool
-    value_pct = sub["ros_vor"].rank(pct=True) * 100
-    rankpct = sub["rkov_num"].map(rank_pct_from_rkov)
-    market_raw = mg["ros_weight"] * sub["ros_num"].fillna(0) + mg["rank_weight"] * rankpct
-    market_pct = market_raw.rank(pct=True) * 100
-    gap = (value_pct - market_pct).round(0)
-    pool.loc[pop, "market_gap"] = gap.values
-
-    ros = sub["ros_num"].fillna(0)
-    # Label the MISPRICING DIRECTION, not an action. UNDERVALUED + available = a
-    # claim; UNDERVALUED + rostered = a buy-low target. OVERVALUED + you own him =
-    # sell-high candidate; OVERVALUED you don't = don't acquire. A rostered star
-    # flagged OVERVALUED may still be a buy-low if recency/news shows a rebound --
-    # the gap is current production vs market price, not a verdict.
-    sig = np.where((gap >= mg["signal_threshold"]) & (sub["ros_vor"] > 0)
-                   & (ros < mg["buy_max_ros"]), "UNDERVALUED",
-          np.where((gap <= -mg["signal_threshold"]) & (ros >= mg["sell_min_ros"]),
-                   "OVERVALUED", ""))
-    pool.loc[pop, "market_signal"] = sig
     return pool
 
 
@@ -925,19 +743,8 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
     os.makedirs(outdir, exist_ok=True)
     pool = attach_prospect_ranks(pool,
                                  misses_path=os.path.join(outdir, "prospect_match_misses.csv"))
-    pool = attach_recency(pool)
+    pool = attach_asset_values(pool)
     pool = compute_dynasty(pool)
-    pool, vor_repl = compute_vor(pool)
-    print("[vor] replacement FPts by position: " + ", ".join(
-        f"{k}={vor_repl[k]:.0f}" for k in CONFIG["vor_startable_slots"]
-        if k in vor_repl and not pd.isna(vor_repl[k])))
-    pool, fvor_repl, team_rem = compute_forward_vor(pool)
-    print(f"[forward] team games remaining~{team_rem:.0f}; projected-VOR replacement: " + ", ".join(
-        f"{k}={fvor_repl[k]:.0f}" for k in CONFIG["vor_startable_slots"]
-        if k in fvor_repl and not pd.isna(fvor_repl[k])))
-    pool = compute_market_gap(pool)
-    _sig = pool["market_signal"].value_counts()
-    print(f"[market] undervalued={_sig.get('UNDERVALUED', 0)}  overvalued={_sig.get('OVERVALUED', 0)}")
 
     out_cols = {
         c["player"]: "player", c["team"]: "team", c["position"]: "position",
@@ -962,22 +769,14 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
         if src in pool.columns:
             out[dst] = pool[src]
 
-    for src, dst in [("vor", "vor"), ("vor_pos", "vor_pos")]:   # value over replacement
-        if src in pool.columns:
-            out[dst] = pool[src]
-
-    for src, dst in [("recent_fpg", "recent_fpg"), ("recent_games", "recent_games"),
-                     ("hot_cold", "hot_cold")]:    # trailing-window form (forward signal)
-        if src in pool.columns:
-            out[dst] = pool[src]
-
-    for src, dst in [("forward_fpg", "forward_fpg"), ("play_rate", "play_rate"),
-                     ("remaining_games", "remaining_games"),
-                     ("ros_proj", "ros_proj"), ("ros_vor", "ros_vor")]:   # forward-looking value
-        if src in pool.columns:
-            out[dst] = pool[src]
-
-    for src, dst in [("market_gap", "market_gap"), ("market_signal", "market_signal")]:
+    # career asset fold-in diagnostics (present only when the fold-in ran)
+    for src, dst in [("dynasty_asset_value", "asset_value"),
+                     ("asset_confidence", "asset_confidence"),
+                     ("baseline_confidence", "asset_conf_num"),
+                     ("career_baseline", "career_baseline"),
+                     ("asset_blend_alpha", "asset_blend_alpha"),
+                     ("dynasty_gap", "dynasty_gap"),
+                     ("dynasty_signal", "dynasty_signal")]:
         if src in pool.columns:
             out[dst] = pool[src]
 
@@ -987,8 +786,7 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
         out["market_plusminus"] = pool["plusminus_num"]
 
     for col in ["fpg_regressed", "win_now_score", "dynasty_score", "dynasty_minus_win_now",
-                "sample_confidence", "estimated_games", "ip", "ip_pct", "whip", "k_per_9", "qs_rate",
-                "vor", "recent_fpg", "hot_cold", "forward_fpg", "ros_proj", "ros_vor"]:
+                "sample_confidence", "estimated_games", "ip", "ip_pct", "whip", "k_per_9", "qs_rate"]:
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors="coerce").round(2)
 

@@ -89,22 +89,22 @@ def pct_rank(values):
     order = v.argsort().argsort()
     return np.round(order / max(len(v) - 1, 1) * 100, 1)
 
+def compute_asset_values(rt, career_path, consensus_path=None,
+                         horizon=HORIZON, discount=DISCOUNT, verbose=False):
+    """Core asset valuation, importable by the engine.
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--ratings", required=True)
-    ap.add_argument("--career", default="data/career/career_stats.csv")
-    ap.add_argument("--horizon", type=int, default=HORIZON)
-    ap.add_argument("--discount", type=float, default=DISCOUNT)
-    ap.add_argument("--outdir", default="data/processed")
-    ap.add_argument("--consensus", default="data/consensus/consensus_ranks.csv")
-    a = ap.parse_args()
-
-    rt = pd.read_csv(a.ratings, encoding="utf-8")
-    cr = pd.read_csv(a.career, encoding="utf-8")
+    rt: a ratings DataFrame carrying at least player / team / role / age.
+    Returns a DataFrame (one row per player WITH MLB-career history) with
+    career_baseline, recent_games, baseline_confidence + confidence label,
+    asset_raw, dynasty_asset_value, proj_stream, and -- if a consensus file is
+    given -- consensus_rank/value + dynasty_gap/dynasty_signal. Players with no
+    career match are dropped here (they belong to the prospect layer)."""
+    if not career_path or not os.path.exists(career_path):
+        if verbose:
+            print(f"[asset] no career cache at {career_path!r}")
+        return pd.DataFrame()
+    cr = pd.read_csv(career_path, encoding="utf-8")
     cr["k"] = cr["name"].map(norm_name) + "|" + cr["team"].astype(str).str.strip()
-
-    # group career rows by (name, team)
     hist = {}
     for k, g in cr.groupby("k"):
         hist[k] = list(zip(g["season"].astype(int), g["games"].astype(float),
@@ -119,15 +119,16 @@ def main():
         if not seasons:
             continue   # prospect / no MLB history -> prospect layer
         role = str(r.get("role", "H"))
-        is_p = role != "H"
         raw, tg = raw_baseline(seasons)
         rows.append({"player": r["player"], "team": team, "role": role,
                      "age": r.get("age"), "raw_base": raw, "games": tg,
-                     "is_p": is_p})
+                     "is_p": role != "H"})
 
     df = pd.DataFrame(rows)
     if df.empty:
-        print("[asset] no career matches - check the career cache join"); return
+        if verbose:
+            print("[asset] no career matches - check the career cache join")
+        return df
 
     # regress raw baseline toward role median for thin samples
     role_med = df.groupby("role")["raw_base"].median().to_dict()
@@ -139,8 +140,8 @@ def main():
         base_reg.append(round(b, 2))
         conf0.append(round(conf, 2))
         age = r["age"] if pd.notna(r["age"]) else 28
-        tot, stream = project(b, float(age), r["is_p"], a.horizon, a.discount)
-        asset_raw.append(round(tot * GAMES_YR.get(r["role"], 120), 0))   # projected total FP
+        tot, stream = project(b, float(age), r["is_p"], horizon, discount)
+        asset_raw.append(round(tot * GAMES_YR.get(r["role"], 120), 0))
         stream0.append(stream)
     df["career_baseline"] = base_reg
     df["asset_raw"] = asset_raw
@@ -148,31 +149,26 @@ def main():
     df["proj_stream"] = [";".join(map(str, s)) for s in stream0]
 
     # baseline confidence: how much real recent sample backs the baseline vs how
-    # much is median-regression filler. INFORMATIONAL, not a re-score -- a LOW here
-    # means "trust this number less," in EITHER direction (thin-sample rookie reads
-    # high, injury-wiped vet reads low; both are soft). Deliberately not a discount:
-    # discounting would wrongly bury injury returnees the model already underrates.
+    # much is median-regression filler. INFORMATIONAL -- a LOW means "trust this
+    # number less," in EITHER direction (thin-sample rookie reads high, injury-
+    # wiped vet reads low; both are soft). Deliberately not a discount.
     df["recent_games"] = df["games"].round(0)
     df["baseline_confidence"] = conf0
     df["confidence"] = pd.cut(df["baseline_confidence"], [-0.01, 0.35, 0.70, 1.01],
                               labels=["LOW", "MED", "HIGH"]).astype(str)
 
     # --- consensus anchor: contrast OUR asset value vs external dynasty ECR ----
-    # Source-agnostic: reads any CSV with a name column + a rank column. Robust
-    # feed is a manual FantasyPros MLB-dynasty CSV (or KTC) refreshed ~monthly,
-    # same pattern as prospect_ranks.csv. Missing file -> gap simply stays blank.
     df["consensus_rank"] = np.nan
     df["consensus_value"] = np.nan
     df["dynasty_gap"] = np.nan
     df["dynasty_signal"] = "NO_CONSENSUS"
-    if a.consensus and os.path.exists(a.consensus):
-        cs = pd.read_csv(a.consensus, encoding="utf-8")
+    if consensus_path and os.path.exists(consensus_path):
+        cs = pd.read_csv(consensus_path, encoding="utf-8")
         rcol = next((c for c in cs.columns
                      if c.strip().lower() in ("consensus_rank", "rank", "rk", "ecr")), None)
         ncol = next((c for c in cs.columns
                      if c.strip().lower() == "name" or "player" in c.strip().lower()), None)
         if rcol and ncol:
-            # FantasyPros names can carry a trailing "(TEAM - POS)" -> strip it
             cs["k"] = (cs[ncol].astype(str).str.replace(r"\s*\(.*\)\s*$", "", regex=True)
                        .map(norm_name))
             cs[rcol] = pd.to_numeric(cs[rcol], errors="coerce")
@@ -181,7 +177,6 @@ def main():
             n = max(len(cs), 1)
             df["consensus_rank"] = df["player"].map(norm_name).map(
                 dict(zip(cs["k"], cs[rcol])))
-            # rank -> 0-100 (higher=better), same orientation as dynasty_asset_value
             df["consensus_value"] = (100.0 * (1.0 - (df["consensus_rank"] - 1.0)
                                               / max(n - 1, 1))).clip(0, 100).round(1)
             df["dynasty_gap"] = (df["dynasty_asset_value"] - df["consensus_value"]).round(1)
@@ -195,16 +190,34 @@ def main():
                     return "SELL_HIGH"   # market rates him well above us
                 return "ALIGNED"
             df["dynasty_signal"] = df["dynasty_gap"].map(_sig)
-            matched = int(df["consensus_rank"].notna().sum())
-            print(f"[asset] consensus matched {matched}/{len(df)} vs {n}-player ECR "
-                  f"(gap thresh +/-{GAP_THRESH})")
-        else:
+            if verbose:
+                matched = int(df["consensus_rank"].notna().sum())
+                print(f"[asset] consensus matched {matched}/{len(df)} vs {n}-player "
+                      f"ECR (gap thresh +/-{GAP_THRESH})")
+        elif verbose:
             print("[asset] consensus file present but no name/rank columns; skipping gap")
-    else:
-        print(f"[asset] no consensus file at {a.consensus!r}; dynasty_gap blank "
+    elif verbose:
+        print(f"[asset] no consensus file at {consensus_path!r}; dynasty_gap blank "
               "(drop a FantasyPros MLB-dynasty CSV there to enable)")
 
-    df = df.sort_values("dynasty_asset_value", ascending=False)
+    return df.sort_values("dynasty_asset_value", ascending=False)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--ratings", required=True)
+    ap.add_argument("--career", default="data/career/career_stats.csv")
+    ap.add_argument("--horizon", type=int, default=HORIZON)
+    ap.add_argument("--discount", type=float, default=DISCOUNT)
+    ap.add_argument("--outdir", default="data/processed")
+    ap.add_argument("--consensus", default="data/consensus/consensus_ranks.csv")
+    a = ap.parse_args()
+
+    rt = pd.read_csv(a.ratings, encoding="utf-8")
+    df = compute_asset_values(rt, a.career, a.consensus, a.horizon, a.discount,
+                              verbose=True)
+    if df.empty:
+        return
     os.makedirs(a.outdir, exist_ok=True)
     out = os.path.join(a.outdir, "dynasty_asset_values.csv")
     df[["player", "team", "role", "age", "career_baseline", "recent_games",
