@@ -58,6 +58,9 @@ def main():
                     help="treated as incomplete; used to back-date ages")
     ap.add_argument("--min-games", type=float, default=20.0,
                     help="min games in the holdout year to count as a real actual")
+    ap.add_argument("--gap", type=int, default=1,
+                    help="years between baseline and holdout (1=next-year; 3-5 lets "
+                         "cumulative aging clear the year-to-year noise)")
     a = ap.parse_args()
 
     cr = pd.read_csv(a.career, encoding="utf-8")
@@ -71,10 +74,12 @@ def main():
 
     complete = [s for s in seasons_all if s < a.current_year]
     Y = a.holdout or (int(max(complete)) if complete else int(max(seasons_all)))
-    prior = [s for s in seasons_all if s < Y]
+    cutoff = Y - a.gap                       # baseline uses seasons <= cutoff
+    prior = [s for s in seasons_all if s <= cutoff]
     if not prior:
-        raise SystemExit(f"[backtest] no seasons before holdout {Y}; cache too shallow")
-    print(f"[backtest] holdout = {Y}; baseline from {int(min(prior))}-{Y - 1}")
+        raise SystemExit(f"[backtest] no seasons <= {cutoff} (holdout {Y}, gap {a.gap})")
+    print(f"[backtest] holdout = {Y}; gap = {a.gap}y; baseline from "
+          f"{int(min(prior))}-{cutoff}")
 
     rt = pd.read_csv(a.ratings, encoding="utf-8")
     rt["k"] = rt["player"].map(da.norm_name)
@@ -82,33 +87,34 @@ def main():
     role_of = dict(zip(rt["k"], rt["role"].astype(str)))
 
     cr["k"] = cr["name"].map(da.norm_name)
-    rows, dropped = [], 0
+    rows, attr, dropped = [], [], 0
     for k, g in cr.groupby("k"):
-        gp = g[g["season"] < Y]
+        gp = g[g["season"] <= cutoff]
         gh = g[g["season"] == Y]
         an_age = age_now.get(k)
-        if gp.empty or gh.empty or an_age is None or pd.isna(an_age):
+        if gp.empty or an_age is None or pd.isna(an_age):
             dropped += 1
             continue
-        if gh["games"].sum() < a.min_games:
-            dropped += 1
+        role = role_of.get(k, "H")
+        age_Y = float(an_age) - (a.current_year - Y)   # age entering the holdout year
+        has_actual = (not gh.empty) and (gh["games"].sum() >= a.min_games)
+        # attrition signal: EVERY baseline player, whether or not he has a holdout
+        # line. A baseline player with no usable holdout season aged OUT -- that
+        # is the survivorship-free half of the aging signal.
+        attr.append({"age_Y": age_Y, "is_p": role != "H", "played": has_actual})
+        if not has_actual:
             continue
         seasons = list(zip(gp["season"].astype(int), gp["games"].astype(float),
                            gp["fpg"].astype(float)))
         base, tg = da.raw_baseline(seasons)
-        # effective anchor age of the baseline: the same recency*games weighting
-        # raw_baseline uses, applied to each prior season's age. The aged
-        # predictor must step from HERE to the holdout year, not from age-1.
         last3 = sorted(seasons, key=lambda x: x[0], reverse=True)[:3]
-        aw = an_num = ad = 0.0
+        an_num = ad = 0.0
         for i, (s, gms, _) in enumerate(last3):
             w = da.RECENCY_W[i] * gms
             an_num += w * (float(an_age) - (a.current_year - s))
             ad += w
-        anchor_age = an_num / ad if ad else float(an_age) - 1
+        anchor_age = an_num / ad if ad else age_Y - a.gap
         actual = float((gh["fpg"] * gh["games"]).sum() / max(gh["games"].sum(), 1e-9))
-        role = role_of.get(k, "H")
-        age_Y = float(an_age) - (a.current_year - Y)   # age entering the holdout year
         rows.append({"role": role, "is_p": role != "H", "age_Y": age_Y,
                      "anchor_age": anchor_age, "games": tg, "raw_base": base,
                      "actual": actual})
@@ -167,7 +173,24 @@ def main():
         cc = (b["curve_ratio"].median() - 1) * 100
         print(f"  {lab:8s} {len(b):>4d} {ac:>8.1f}% {cc:>7.1f}%")
     print("  (read sign + ordering across buckets, not exact %; reversion is mixed in)")
-    print(f"\n[survivorship] {dropped} players had a baseline but no usable {Y} line.")
+
+    # attrition by age: of all baseline players, what share recorded NO usable
+    # holdout line. This is the half of aging the rate buckets above cannot see --
+    # players who aged out entirely. A rising drop-out rate with age IS the
+    # decline the survivor sample hides, and it's why a steep curve can be right.
+    at = pd.DataFrame(attr)
+    at["bucket"] = at["age_Y"].map(bucket)
+    print(f"\n[attrition: share of baseline players with NO usable {Y} line, by age]")
+    print(f"  {'bucket':8s} {'n':>4s} {'dropped_out':>12s}")
+    for lo, hi, lab in AGE_BUCKETS:
+        b = at[at["bucket"] == lab]
+        if len(b) == 0:
+            continue
+        out = (~b["played"]).mean() * 100
+        print(f"  {lab:8s} {len(b):>4d} {out:>11.0f}%")
+    print("  (still mildly survivor-biased -- the fully-washed-out left the 2026 "
+          "player pool -- but the age GRADIENT is real aging-via-attrition)")
+    print(f"\n[survivorship] {dropped} players had no baseline or no age and were skipped.")
 
 
 if __name__ == "__main__":
