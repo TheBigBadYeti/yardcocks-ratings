@@ -35,11 +35,35 @@ GAMES_YR = {"H": 150, "SP": 30, "RP": 65, "SP/RP": 45}        # season games/app
 TEAM_ALIAS = {"CHW": "CWS", "OAK": "ATH", "AZ": "ARI", "WAS": "WSH"}
 GAP_THRESH = 15   # |dynasty_gap| (0-100 pts) to flag a model-vs-consensus disagreement
 
-# aging multipliers vs peak=1.0, linearly interpolated between anchors
+# aging multipliers vs peak=1.0, linearly interpolated between anchors. These are
+# SKILL-decline curves (rate among players still playing) -- validated against the
+# cohort backtest's survivor retention, so they are NOT changed to chase population
+# numbers. Population decline = skill * survival; survival lives separately below.
 HIT_ANCHORS = [(21, 0.85), (25, 0.98), (27, 1.00), (30, 0.96), (32, 0.90),
                (34, 0.80), (37, 0.60), (40, 0.38), (43, 0.15), (45, 0.00)]
 PIT_ANCHORS = [(22, 0.87), (24, 0.96), (26, 1.00), (29, 0.96), (31, 0.90),
                (33, 0.81), (35, 0.66), (38, 0.40), (41, 0.15), (44, 0.00)]
+
+# ATTRITION: annual P(a rostered REGULAR at this age is still one next year),
+# calibrated from the cohort backtest's 5-year survival (regular-floor, COVID-clean).
+# Split by role -- pitchers attrit far harder and earlier (47% 5y survival at 23
+# vs 86% for hitters). The asset model was missing this term entirely; aging stars
+# lose dynasty value mostly because they STOP PLAYING, not because their rate craters.
+ATTRITION_ENABLED = True
+HIT_SURVIVE_ANCHORS = [(22, 0.98), (26, 0.95), (29, 0.91), (32, 0.80), (35, 0.69),
+                       (38, 0.60), (41, 0.47), (44, 0.30), (47, 0.15)]
+PIT_SURVIVE_ANCHORS = [(22, 0.86), (26, 0.85), (29, 0.82), (32, 0.79), (35, 0.66),
+                       (38, 0.51), (41, 0.35), (44, 0.18), (47, 0.08)]
+
+# Durability premium: ELITE producers survive dramatically better, and the gap
+# widens with age (hitters: +39pp at 31-33, ~0 when young). So the hazard is
+# modulated by the player's production tier q (0-1 percentile within role): a
+# top-tier bat carries far less attrition than the median regular. (start, slope,
+# max) of the per-year survival gain; pitchers ~half the hitter premium (the
+# cohort showed +11-15pp, and the young inversion was small-sample noise).
+QUALITY_GAIN = {"H": (26, 0.085, 0.65), "P": (26, 0.045, 0.35)}
+Q_CLIP = (0.15, 0.85)          # don't extrapolate past the measured tiers
+SURVIVE_CLIP = (0.30, 0.97)
 
 
 def norm_name(s):
@@ -61,6 +85,29 @@ def curve(age, is_pitcher):
     return anchors[-1][1]
 
 
+def _interp(anchors, x):
+    if x <= anchors[0][0]:
+        return anchors[0][1]
+    if x >= anchors[-1][0]:
+        return anchors[-1][1]
+    for (a0, v0), (a1, v1) in zip(anchors, anchors[1:]):
+        if a0 <= x <= a1:
+            return v0 + (v1 - v0) * (x - a0) / (a1 - a0)
+    return anchors[-1][1]
+
+
+def survive_annual(age, is_pitcher, q=0.5):
+    """Annual survival, modulated by production tier q (0-1 within role). q=0.5 is
+    the median regular (population hazard); elite producers (high q) carry a much
+    lower hazard, the gap widening with age."""
+    base = _interp(PIT_SURVIVE_ANCHORS if is_pitcher else HIT_SURVIVE_ANCHORS, age)
+    start, slope, gmax = QUALITY_GAIN["P" if is_pitcher else "H"]
+    g = min(max(slope * (age - start), 0.0), gmax)
+    qc = min(max(q, Q_CLIP[0]), Q_CLIP[1])
+    s = base * (1.0 + g * (qc - 0.5))
+    return min(max(s, SURVIVE_CLIP[0]), SURVIVE_CLIP[1])
+
+
 def raw_baseline(seasons):
     """seasons: list of (season, games, fpg). Weighted last-3 true-talent FP/G."""
     last3 = sorted(seasons, key=lambda x: x[0], reverse=True)[:3]
@@ -74,11 +121,15 @@ def raw_baseline(seasons):
     return (num / den if den else 0.0), total_games
 
 
-def project(base, age, is_pitcher, horizon=HORIZON, discount=DISCOUNT):
+def project(base, age, is_pitcher, q=0.5, horizon=HORIZON, discount=DISCOUNT):
+    """Expected value stream = skill-decline (curve) * cumulative survival
+    (attrition, quality-modulated) * time discount."""
     cm = curve(age, is_pitcher) or 0.5
-    stream, total = [], 0.0
+    stream, total, surv_cum = [], 0.0, 1.0
     for y in range(horizon):
-        proj = base * curve(age + y, is_pitcher) / cm
+        if ATTRITION_ENABLED and y > 0:
+            surv_cum *= survive_annual(age + y - 1, is_pitcher, q)
+        proj = base * curve(age + y, is_pitcher) / cm * surv_cum
         stream.append(round(proj, 2))
         total += (discount ** y) * proj
     return round(total, 2), stream
@@ -132,6 +183,10 @@ def compute_asset_values(rt, career_path, consensus_path=None,
 
     # regress raw baseline toward role median for thin samples
     role_med = df.groupby("role")["raw_base"].median().to_dict()
+    # production tier within group (hitter vs pitcher scales differ): drives the
+    # durability dampener so elite bats/arms carry the lower elite hazard.
+    df["_grp"] = np.where(df["is_p"], "P", "H")
+    df["q_tier"] = df.groupby("_grp")["raw_base"].rank(pct=True).fillna(0.5)
     base_reg, asset_raw, stream0, conf0 = [], [], [], []
     for _, r in df.iterrows():
         thin = THIN_GAMES.get(r["role"], 200)
@@ -140,7 +195,7 @@ def compute_asset_values(rt, career_path, consensus_path=None,
         base_reg.append(round(b, 2))
         conf0.append(round(conf, 2))
         age = r["age"] if pd.notna(r["age"]) else 28
-        tot, stream = project(b, float(age), r["is_p"], horizon, discount)
+        tot, stream = project(b, float(age), r["is_p"], r["q_tier"], horizon, discount)
         asset_raw.append(round(tot * GAMES_YR.get(r["role"], 120), 0))
         stream0.append(stream)
     df["career_baseline"] = base_reg
