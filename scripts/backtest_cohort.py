@@ -113,6 +113,26 @@ def main():
           "far below surv_ret, dropping washouts (the old backtest) overstated how "
           "well that age holds value.")
 
+    # durability by quality: do ELITE producers survive better than the field?
+    # If so, a single population hazard over-penalizes the durable stars (Judge,
+    # Ramirez) -- this table is how much to dampen attrition for elite players.
+    # Quality = fpg_base percentile WITHIN group (hitter/pitcher scales differ).
+    df["q"] = df.groupby("group")["fpg_base"].rank(pct=True)
+    elite = df["q"] >= 0.75          # top quartile of base-year production
+    print("\n[survival by quality: top-quartile producers vs the rest, by age]")
+    print(f"  {'bucket':8s} {'elite_n':>7s} {'elite_surv':>11s} "
+          f"{'rest_n':>7s} {'rest_surv':>10s} {'premium':>8s}")
+    for lo, hi, lab in AGE_BUCKETS:
+        be = df[(df["bucket"] == lab) & elite]
+        br = df[(df["bucket"] == lab) & ~elite]
+        if len(be) < 5 or len(br) < 5:
+            continue
+        es, rs = be["played_plus"].mean(), br["played_plus"].mean()
+        print(f"  {lab:8s} {len(be):>7d} {es * 100:>10.0f}% "
+              f"{len(br):>7d} {rs * 100:>9.0f}% {(es - rs) * 100:>+7.0f}pp")
+    print("  (a positive premium that widens with age = elites age better; that gap "
+          "is the durability dampener the per-player attrition needs)")
+
 
 if __name__ == "__main__":
     main()
