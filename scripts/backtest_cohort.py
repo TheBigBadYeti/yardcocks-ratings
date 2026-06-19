@@ -49,20 +49,32 @@ def main():
     ap.add_argument("--group", choices=["both", "hitting", "pitching"], default="both")
     ap.add_argument("--min-fpg-base", type=float, default=0.5,
                     help="drop near-zero base lines so retention ratios are meaningful")
+    ap.add_argument("--min-games-base", type=float, default=0.0,
+                    help="entry floor on base-year games -- raise it (e.g. 100 hitters, "
+                         "40+ pitchers) to isolate REGULARS from the MLB fringe, whose "
+                         "attrition is talent level, not aging")
+    ap.add_argument("--drop-plus-years", default="",
+                    help="comma list of plus-years to exclude (e.g. 2020 for COVID)")
     a = ap.parse_args()
 
     df = pd.read_csv(a.cohort)
     if a.group != "both":
         df = df[df["group"] == a.group]
-    for col in ("age_base", "fpg_base", "fpg_plus", "played_plus", "gap"):
+    for col in ("age_base", "fpg_base", "fpg_plus", "played_plus", "gap",
+                "games_base", "base_year"):
         df[col] = pd.to_numeric(df[col], errors="coerce")
-    df = df[(df["age_base"].notna()) & (df["fpg_base"] > a.min_fpg_base)].copy()
+    df = df[(df["age_base"].notna()) & (df["fpg_base"] > a.min_fpg_base)
+            & (df["games_base"] >= a.min_games_base)].copy()
+    if a.drop_plus_years:
+        drop = {int(x) for x in a.drop_plus_years.split(",")}
+        df = df[~(df["base_year"] + df["gap"]).isin(drop)]
     if df.empty:
         raise SystemExit("[cohort] no usable rows (check fetch + filters)")
     gap = int(df["gap"].mode().iloc[0])
     df["is_p"] = df["group"].astype(str).str.startswith("p")
     print(f"[cohort] {len(df)} player-cohort rows, gap={gap}y, "
-          f"base years {sorted(df['base_year'].unique())}, group={a.group}")
+          f"base years {sorted(df['base_year'].astype(int).unique())}, group={a.group}, "
+          f"min_games_base={a.min_games_base:g}")
 
     df["ret"] = df["fpg_plus"] / df["fpg_base"]          # washout -> 0
     df["curve_ret"] = [da.curve(ag + gap, ip) / da.curve(ag, ip)
