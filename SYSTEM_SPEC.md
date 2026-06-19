@@ -173,12 +173,22 @@ C +4, SS +2, 3B +2, 2B +1, 1B +0, OF +0, SP +2, RP +1. Eligible at **UT only**: 
   Minors / Reserve / Free Agent / Active 0.
 
 ### 5.8 Dynasty score (0–100, clipped)
+The non-minor score is no longer the bare weighted backbone — it is a
+**confidence-weighted blend** of that backbone with the career **asset value**
+(§5.10–5.11). Minors are untouched by the asset layer (their formula is unchanged).
 ```
-non-minor: 0.54·win_now + 0.18·ros + 0.10·rank_pct
-             + age_curve + prospect_bonus + dynasty_status_penalty + manual_tag
+old_core   = 0.54·win_now + 0.18·ros + 0.10·rank_pct + age_curve
+alpha      = clip(baseline_confidence · 0.60, 0, 0.60)   # 0 for minors / no career
+core       = alpha·asset_value + (1 − alpha)·old_core
+non-minor: core + prospect_bonus·prospect_phase + dynasty_status_penalty + manual_tag
 minor:     24.0 + 0.15·max(win_now, 0) + 0.22·ros + 0.10·rank_pct
              + age_curve + prospect_bonus + dynasty_status_penalty
 ```
+`asset_max_weight = 0.60`: even a full-confidence career sample only *replaces* up
+to 60% of the backbone, so win-now production always anchors the score. A
+thin/injury-wiped sample (low `baseline_confidence`) leans back toward `old_core`.
+`prospect_phase` is the prospect↔asset handoff (§5.11). `manual_tag` is an optional
+hand override (default 0).
 
 ### 5.9 Prospect bonus (from external MLB Pipeline ranks; see §7)
 - By overall rank: ≤20 → +28, ≤50 → +22, ≤100 → +15.
@@ -187,46 +197,89 @@ minor:     24.0 + 0.15·max(win_now, 0) + 0.22·ros + 0.10·rank_pct
 - **+4 flat** whenever any rank-based bonus applies.
 - Minors with no external rank — fallback `clip(Ros/100·15 + age_curve·0.7, 2, 18)`.
 
----
+### 5.10 Dynasty asset model (`scripts/dynasty_asset.py`)
+A career-history projection that values a player by his **expected remaining
+production stream**, not just his current line. Computed separately from the
+engine and folded into dynasty_score (§5.11). Pipeline per player:
 
-## 5.10 VOR — value over replacement (parallel lens)
+1. **Career baseline** — recency-weighted true-talent FP/G over the last 3 seasons,
+   weights `RECENCY_W = [3, 2, 1]` × games. Regressed toward the role median for
+   thin samples: `conf = min(career_games / THIN, 1)`,
+   `THIN_GAMES = {H 250, SP 60, RP 150, SP/RP 100}`. This `conf` is surfaced as
+   `baseline_confidence` (§5.13) and also drives the fold-in alpha.
+2. **Skill curve** (age-decline of *rate*, separate from survival). Anchors
+   (multiplicative, peak 1.00), interpolated:
+   - Hitter: (21,.85)(25,.98)(27,1.0)(30,.96)(32,.90)(34,.80)(37,.60)(40,.38)(43,.15)(45,0)
+   - Pitcher: (22,.87)(24,.96)(26,1.0)(29,.96)(31,.90)(33,.81)(35,.66)(38,.40)(41,.15)(44,0)
+   These are a **validated skill curve** — the cohort backtest confirmed surviving
+   players retain rate almost exactly along this shape through the early 30s. Do
+   **not** steepen them to absorb attrition (see §5.12 and §6).
+3. **Attrition** (survival) — §5.12. Each future year is multiplied by cumulative
+   survival probability, modulated by the player's production tier.
+4. **Asset raw** — `Σ_y discount^y · baseline · skill(age+y)/skill(age) ·
+   survival_cum(y) · GAMES_YR[role]`, with `HORIZON = 7`, `DISCOUNT = 0.97`,
+   `GAMES_YR = {H 150, SP 30, RP 65, SP/RP 45}`. The 7-year horizon deliberately
+   penalizes aging stars for a rebuild context.
+5. **`dynasty_asset_value`** — 0–100 percentile of asset_raw within the
+   established-player pool. This is the `asset_value` blended in §5.8.
 
-VOR is a season-total FPts lens that runs alongside `win_now_score` and
-`dynasty_score` without modifying either. It answers a different question:
-*how much does this player produce above the freely available alternative at
-their position?*
+Team-aware join `(norm_name, team)`; `TEAM_ALIAS = {CHW→CWS, OAK→ATH, AZ→ARI,
+WAS→WSH}`. Reads a committed career cache (`data/career/career_stats.csv`); makes
+**zero API calls** at engine time.
 
-**Startable slots** (14 teams × lineup):
+### 5.11 Fold-in & prospect↔asset handoff
+- `alpha = baseline_confidence · asset_max_weight` (cap 0.60), forced to 0 for
+  minors and for anyone with no career match → those fall back to pure `old_core`.
+- **Double-count taper:** a NON-minor who now carries a career asset (a graduating
+  call-up in an Active/Reserve/IR slot) would otherwise collect both the prospect
+  bonus *and* the asset blend. `prospect_phase = (1 − baseline_confidence)` for
+  such players (full bonus while the sample is thin, fading to 0 as MLB time
+  accrues); minors keep `prospect_phase = 1.0`. Diagnostic cols: `asset_blend_alpha`,
+  `prospect_phase`, `prospect_bonus_applied`.
 
-| Position | Slots |
-|---|---|
-| C | 14 |
-| 1B | 14 |
-| 2B | 14 |
-| 3B | 14 |
-| SS | 14 |
-| OF | 42 |
-| SP | 84 |
-| RP | 42 |
+### 5.12 Attrition / survival curve (the term the model was missing)
+Aging stars lose dynasty value mostly because they **stop playing**, not because
+their rate craters. Survival is a **separate** term from the skill curve, both
+role-split and quality-modulated. Annual-survival anchors (interp), calibrated
+from an unbiased forward cohort backtest (regular-floor, COVID-clean):
+- Hitter: (22,.98)(26,.95)(29,.91)(32,.80)(35,.69)(38,.60)(41,.47)(44,.30)(47,.15)
+- Pitcher: (22,.86)(26,.85)(29,.82)(32,.79)(35,.66)(38,.51)(41,.35)(44,.18)(47,.08)
 
-**Replacement level** for each position = total FPts of the non-Minors player
-ranked `slots + 1` among all players eligible at that position (i.e., the first
-player who cannot crack a starting lineup anywhere in the league). The engine
-prints this table on every run.
+Pitchers attrit far harder and earlier (≈47% 5-yr survival at 23 vs 86% for
+hitters); they only converge with hitters around 31–33.
 
-**Player VOR** = their total FPts minus the replacement level at their
-*best-eligible position* — the position where the difference is largest.
-`vor_pos` records which position gave that best value. Multi-eligible players
-(e.g., SS/2B, SP/RP) compete in all relevant pools and receive the highest VOR.
+**Quality modulation.** Elite producers survive dramatically better, and the gap
+widens with age (hitters: **+39pp at 31–33** — 52% elite vs 13% rest). So the
+hazard is modulated by the player's production tier `q` (0–1 percentile of career
+baseline within role): `survive = base · (1 + g(age)·(q − 0.5))`, with
+`g = clip(slope·(age − 26), 0, max)`, `QUALITY_GAIN = {H (slope .085, max .65),
+P (slope .045, max .35)}`. `q` clipped to [0.15, 0.85] (no extrapolation past the
+measured tiers); final survival clipped to [0.30, 0.97]. Validated: median 32yo
+hitter 5-yr survival 0.20 (cohort 0.21), elite 0.53 (cohort 0.52). The pitcher
+premium is intentionally ~half (cohort showed only +11–15pp; the young-pitcher
+inversion was small-sample noise). **Calibration caveat:** the hitter premium is
+pinned at 31–33; 34–36 and 37+ are smooth extrapolations, not measured points —
+refine if the cohort elite-vs-rest table for those buckets is pulled.
 
-Minors players receive `vor = NaN` — no current MLB production to measure, and
-they are excluded from setting replacement levels. Players with no eligible
-scoring position (e.g., pure UT) also receive `vor = NaN`.
+### 5.13 Baseline confidence (informational)
+`baseline_confidence` (0–1) = the regression `conf` from §5.10 step 1 — how much
+real sample backs the baseline vs median-regression filler. Label
+`confidence ∈ {LOW <0.35, MED 0.35–0.70, HIGH >0.70}` plus `recent_games`. It is
+**informational, not a discount** — a discount would wrongly bury legitimate
+injury returnees (e.g. Strider). It does double duty as the fold-in alpha and the
+prospect_phase driver.
 
-**Output columns:** `vor` (float, same scale as FPts; can be negative) and
-`vor_pos` (string). Both appear in `current_player_ratings.csv` and
-`kipp_current_player_values.csv`. `win_now_score` and `dynasty_score` are
-unchanged.
+### 5.14 Consensus anchor (model-vs-market sanity check)
+Contrast against FantasyPros **generic** dynasty ECR (manual CSV at
+`data/consensus/consensus_ranks.csv`; auto-detects RK / PLAYER NAME, strips
+trailing "(TEAM - POS)"). `dynasty_gap = dynasty_asset_value − consensus_value`
+(rank→0–100); `dynasty_signal ∈ {BUY_LOW (we ≥ market + 15), SELL_HIGH (market ≥
+us + 15), ALIGNED, NO_CONSENSUS}`, `GAP_THRESH = 15`. **Interpretation discipline:**
+this is FantasyPros' *generic* scoring, so a BUY_LOW cluster of contact/OBP bats is
+usually our league's +BB/−K scoring talking, not a true market error — a real edge
+only if leaguemates price off generic ranks. Distinct from `market_gap` (Fantrax
+Ros/rank, *this* league), which is the actual trade market. Use `dynasty_gap` as a
+model-error check, `market_gap` for trades.
 
 ---
 
@@ -247,6 +300,26 @@ unchanged.
   (Codex's older preseason snapshot would double-count graduates.)
 - **No paid data.** FanGraphs and any paid membership were rejected; the prospect
   layer uses only free, public MLB Pipeline data.
+- **Skill curve ≠ attrition curve (the core aging insight).** Aging hurts dynasty
+  value through two independent channels: rate decline (skill) and *ceasing to
+  play* (survival). The model keeps them separate. The decomposition came from
+  reconciling three backtests — an in-pool test (survivorship-biased: the career
+  cache is the 2026 survivor universe, so it falsely showed the curve "too steep"),
+  and a forward cohort test at two floors (a 20-game floor admits the September-
+  callup fringe and falsely showed "too gentle"; a regular floor gives the truth).
+  Key identity: `pop_ret = skill_retention × survival`, and survivor skill matched
+  the existing rate curve almost exactly — so the curve was a correct *skill* curve
+  that simply lacked a *survival* term. Steepening the rate anchors would have
+  rebuilt the "Chris Sale produces 8% of his rate at 38" falsehood; the right fix
+  was to add attrition (§5.12). This is also the correct Sale fix — he is killed by
+  ~8% survival, not a fake rate collapse — and it preserves the youth growth premium.
+- **Durable elites need quality-modulated, not flat, attrition.** A flat population
+  hazard buried generational 33-year-olds (Judge, Ramírez) at ~rank 185, which
+  would tell a rebuild to sell them for scraps. The +39pp elite survival premium at
+  31–33 (§5.12) lifts proven top-tier producers back toward a defensible top-50–100
+  while leaving marginal agers correctly buried — the modulation is age- *and*
+  tier-selective (young elites barely move; old elites move a lot), which is the
+  proof it is not a global softening.
 
 ---
 
@@ -302,16 +375,47 @@ re-valuation, and a separate **pre-draft dynasty board** engine.
   riding day-to-day FP/G drift, not a miscalibration. On matching data the ordering
   matches Codex. Codex confirms the token is a hard-coded manual default (no
   external source of truth), so it is tunable — but the evidence says leave it.
+- **Dynasty asset model + attrition — BUILT & VALIDATED (§5.10–5.14, §6).** Career
+  baseline → validated skill curve → role-split, quality-modulated survival →
+  7-yr asset stream, folded into dynasty_score at up to 60% by confidence. Survival
+  calibrated against an unbiased forward cohort; quality premium pinned at the
+  31–33 hitter anchor. Judge/Ramírez recovered from ~185 to ~80–98; marginal agers
+  stay buried; pitchers take steeper, earlier attrition.
+
+### Open items
+1. **Two-way players (Ohtani) — OPEN, highest-impact bug.** The engine values only
+   one half (hitting *or* pitching) and discards the other, floating Ohtani at
+   ~rank 200. Fix = sum his hitting and pitching asset streams. This is the single
+   most-wrong answer on the board and is a genuine bug, not a calibration.
+2. **Attrition premium beyond 31–33 — extrapolated.** The hitter elite-vs-rest
+   premium is measured only at 31–33; 34–36 and 37+ are smooth fits. Pull those
+   cohort buckets to replace the extrapolation if Judge/Ramírez-class landings look
+   off (`backtest_cohort.py --by-quality` already prints them).
+3. **q-tier accuracy audit.** The whole modulation rides on each player's career
+   baseline percentile. Spot-check that scoring-favored vets (high-SB/contact, e.g.
+   Trea Turner) aren't mis-tiered to the population haircut by an injury-shortened
+   recent season dragging the recency-weighted baseline down.
+4. **Pitcher durability is tier-flat by design.** The +12pp pitcher premium can't
+   distinguish a command-and-health ace from the attrition-prone field; credit
+   exceptional veteran-arm durability by hand in trades.
 
 ---
 
 ## 9. File inventory
 
 **In Project files (durable, shared):**
-- `inseason_ratings_engine.py` — core logic.
+- `inseason_ratings_engine.py` — core logic (now folds in the asset layer).
+- `scripts/dynasty_asset.py` — career→aging→attrition asset model (§5.10–5.14).
+- `scripts/snapshot.py` — banks immutable dated ratings copies under `data/snapshots/`.
+- `scripts/backtest_aging.py`, `scripts/fetch_cohort.py`, `scripts/backtest_cohort.py`
+  — aging-curve validation harness (in-pool + unbiased forward cohort + quality split).
+- Committed input caches: `data/career/` (career_stats.csv, cohort.csv),
+  `data/consensus/consensus_ranks.csv`, `data/snapshots/` + manifest.
 - `prospect_ranks.csv` — semi-durable; refresh monthly.
 - League rules PDF.
 - This spec (`SYSTEM_SPEC.md`).
+- `data/processed/` is **gitignored** (regenerated each run); the engine reads
+  caches only and makes zero API calls.
 
 **Uploaded fresh each session (volatile — keep OUT of Project files):**
 - The eight Fantrax CSV exports.
