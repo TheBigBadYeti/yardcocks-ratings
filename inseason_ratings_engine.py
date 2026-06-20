@@ -93,6 +93,12 @@ CONFIG = {
     "pool_pitcher_min_fpts": 20.0,
     "pool_min_ros": 20.0,
 
+    # --- forward (rest-of-season) value lens: feeds optimize_lineup (forward_fpg)
+    #     and franchise_outlook (ros_vor). VOR replacement = the LAST startable
+    #     player at each role league-wide (teams x slots). Recency blend wired
+    #     later; today forward_fpg is the injury-neutral regressed talent rate.
+    "forward_value": {"teams": 14, "slots": {"H": 9, "SP": 6, "RP": 3}},
+
     # --- positional scarcity: ADDITIVE by eligibility token ----------------
     "scarcity_bonus": {"C": 4, "SS": 2, "3B": 2, "2B": 1, "1B": 0, "OF": 0,
                        "SP": 2, "RP": 1},
@@ -661,6 +667,49 @@ def attach_asset_values(pool):
     return pool
 
 
+def compute_forward_value(pool):
+    """Forward (rest-of-season) value. Unlike win_now -- which docks volume (FPts
+    percentile) and applies the -22 injured status penalty, so an injured-but-
+    returning star reads DEAD -- forward value is a talent RATE that survives a
+    midseason injury. That is exactly what the lineup optimizer and franchise
+    posture need (an IL'd star is still a strong ROS asset).
+
+      forward_fpg : injury-neutral regressed FP/G (recency blend lands later).
+      ros_vor     : forward_fpg above the role's replacement level = the rate of
+                    the LAST startable player at that role across the league
+                    (14 teams x slots). SP/RP is valued at the SP baseline.
+    """
+    fv = CONFIG["forward_value"]
+    teams, slots = fv["teams"], fv["slots"]
+    pool["forward_fpg"] = pool["fpg_regressed"].clip(lower=0)
+
+    sp_roles, rp_roles = {"SP", "SP/RP"}, {"RP"}
+    sel = {
+        "H": pool["pool_group"] == "H",
+        "SP": (pool["pool_group"] == "P") & pool["role"].isin(sp_roles),
+        "RP": (pool["pool_group"] == "P") & pool["role"].isin(rp_roles),
+    }
+    repl = {}
+    for role, n in (("H", teams * slots["H"]), ("SP", teams * slots["SP"]),
+                    ("RP", teams * slots["RP"])):
+        vals = pool.loc[sel[role] & _not_minors(pool), "fpg_regressed"].dropna()
+        vals = vals.sort_values(ascending=False)
+        # replacement = the n-th startable rate; if the pool is thinner, the last
+        repl[role] = float(vals.iloc[n - 1]) if len(vals) >= n else (
+            float(vals.iloc[-1]) if len(vals) else 0.0)
+
+    def _repl(role):
+        if role == "H":
+            return repl["H"]
+        if role in rp_roles:
+            return repl["RP"]
+        return repl["SP"]      # SP, SP/RP, bare-P
+
+    pool["ros_vor"] = (pool["forward_fpg"] - pool["role"].map(_repl)).round(2)
+    pool["forward_fpg"] = pool["forward_fpg"].round(2)
+    return pool
+
+
 def compute_dynasty(pool):
     nm = CONFIG["dynasty_non_minor"]
     mn = CONFIG["dynasty_minor"]
@@ -756,6 +805,7 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
 
     pool = compute_regressed_fpg(pool)
     pool = compute_win_now(pool)
+    pool = compute_forward_value(pool)
     os.makedirs(outdir, exist_ok=True)
     pool = attach_prospect_ranks(pool,
                                  misses_path=os.path.join(outdir, "prospect_match_misses.csv"))
@@ -773,6 +823,10 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
         "dynasty_minus_win_now": "dynasty_minus_win_now",
     }
     out = pool[list(out_cols.keys())].rename(columns=out_cols)
+
+    # forward (rest-of-season) value lens -> optimize_lineup + franchise_outlook
+    out["forward_fpg"] = pool["forward_fpg"]
+    out["ros_vor"] = pool["ros_vor"]
 
     # pitcher-volume / rate columns where available (from the split exports)
     for src, dst in [("ip_num", "ip"), ("ip_pct", "ip_pct"), ("whip", "whip"),

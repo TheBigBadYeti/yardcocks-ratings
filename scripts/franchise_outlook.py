@@ -103,10 +103,8 @@ def main():
     a = ap.parse_args()
 
     d = pd.read_csv(a.ratings)
-    # ros_vor = forward startable value. A dedicated recency-adjusted VOR column
-    # will replace this once the recency cache layer is wired into the engine;
-    # until then win_now_score is the right proxy (fpg_regressed + Ros already
-    # baked in, so injured stars already discount themselves).
+    # ros_vor = forward startable value (forward_fpg above replacement level).
+    # Graceful fallback to win_now_score for old ratings files without the column.
     if "ros_vor" not in d.columns:
         d["ros_vor"] = d["win_now_score"]
     t = team_table(d)
