@@ -52,7 +52,7 @@ def id_index(seasons):
     for season in seasons:
         for group in ("hitting", "pitching"):
             url = (f"{API}/stats?stats=season&group={group}&season={season}"
-                   f"&sportId=1&gameType=R&playerPool=All&limit=5000")
+                   f"&sportId=1&gameType=R&limit=5000")
             for sp in fr._get(url).get("stats", [{}])[0].get("splits", []):
                 pid = sp.get("player", {}).get("id")
                 nm = fr.norm_name(sp.get("player", {}).get("fullName", ""))
@@ -115,6 +115,26 @@ def year_by_year(pid, group):
     return sorted(clean, key=lambda r: r["season"])
 
 
+def groups_for(position, role):
+    """Which MLB stat groups to fetch. A two-way player carries BOTH a hitting and
+    a pitching eligibility token (e.g. Ohtani 'UT,SP') -> fetch both; everyone else
+    gets their single group. year_by_year returns empty for a group a player never
+    played, so the only cost of a false two-way is one wasted call (the asset model
+    then drops a thin second half via MIN_SECONDARY_GAMES)."""
+    toks = [t.strip().upper() for t in str(position).split(",") if t.strip()]
+    pit = {"SP", "RP", "P"}
+    has_pit = any(t in pit for t in toks)
+    has_hit = any(t not in pit for t in toks)   # C/1B/.../OF/UT/DH all count as hitting
+    groups = []
+    if has_hit:
+        groups.append("hitting")
+    if has_pit:
+        groups.append("pitching")
+    if not groups:                               # no usable position -> fall back to role
+        groups = ["pitching"] if str(role) != "H" else ["hitting"]
+    return groups
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ratings", required=True, help="current_player_ratings.csv (for names+roles)")
@@ -147,13 +167,16 @@ def main():
             pid = resolve_id(nm, r.get("team", ""), by_nt, by_name)
             if not pid:
                 misses.append(nm); continue
-            group = "pitching" if str(r.get("role", "H")) != "H" else "hitting"
-            rows = year_by_year(pid, group)
-            for row in rows:
-                w.writerow([pid, nm, r.get("team", ""), group, row["season"],
-                            row["games"], row["fpts"], row["fpg"]])
-            if rows:
-                n_players += 1; n_rows += len(rows)
+            wrote = False
+            for group in groups_for(r.get("position", ""), r.get("role", "H")):
+                rows = year_by_year(pid, group)
+                for row in rows:
+                    w.writerow([pid, nm, r.get("team", ""), group, row["season"],
+                                row["games"], row["fpts"], row["fpg"]])
+                if rows:
+                    n_rows += len(rows); wrote = True
+            if wrote:
+                n_players += 1
 
     print(f"[career] {n_players} players, {n_rows} player-seasons -> {out}")
     if misses:

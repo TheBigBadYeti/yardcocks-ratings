@@ -649,6 +649,7 @@ def attach_asset_values(pool):
                          ("confidence", "asset_confidence"),
                          ("career_baseline", "career_baseline"),
                          ("recent_games", "recent_games"),
+                         ("two_way", "two_way"),
                          ("dynasty_gap", "dynasty_gap"),
                          ("dynasty_signal", "dynasty_signal")]:
             if src in adf.columns:
@@ -789,6 +790,7 @@ def run(outdir, mode, managed_team, split=None, rostered=None, fa=None, team_ros
                      ("asset_confidence", "asset_confidence"),
                      ("baseline_confidence", "baseline_confidence"),
                      ("career_baseline", "career_baseline"),
+                     ("two_way", "two_way"),
                      ("asset_blend_alpha", "asset_blend_alpha"),
                      ("prospect_phase", "prospect_phase"),
                      ("prospect_bonus_applied", "prospect_bonus_applied"),

@@ -32,6 +32,7 @@ DISCOUNT = 0.97
 RECENCY_W = [3, 2, 1]
 THIN_GAMES = {"H": 250, "SP": 60, "RP": 150, "SP/RP": 100}   # games for full confidence
 GAMES_YR = {"H": 150, "SP": 30, "RP": 65, "SP/RP": 45}        # season games/appearances by role
+MIN_SECONDARY_GAMES = 20   # a two-way player's 2nd career must clear this to count
 TEAM_ALIAS = {"CHW": "CWS", "OAK": "ATH", "AZ": "ARI", "WAS": "WSH"}
 GAP_THRESH = 15   # |dynasty_gap| (0-100 pts) to flag a model-vs-consensus disagreement
 
@@ -156,52 +157,97 @@ def compute_asset_values(rt, career_path, consensus_path=None,
         return pd.DataFrame()
     cr = pd.read_csv(career_path, encoding="utf-8")
     cr["k"] = cr["name"].map(norm_name) + "|" + cr["team"].astype(str).str.strip()
-    hist = {}
-    for k, g in cr.groupby("k"):
-        hist[k] = list(zip(g["season"].astype(int), g["games"].astype(float),
-                           g["fpg"].astype(float)))
+    # history keyed by (k, GROUP) so a two-way player's hitting and pitching
+    # seasons stay separate -- blending a 3.5 hit rate with a 14 pit rate into one
+    # baseline is nonsense. (Latent until the cache carries both groups; the
+    # two-way fetch in fetch_career.py now does.)
+    if "group" not in cr.columns:
+        cr["group"] = "hitting"
+    histg = {}
+    for (k, grp), g in cr.groupby(["k", "group"]):
+        histg[(k, grp)] = list(zip(g["season"].astype(int), g["games"].astype(float),
+                                   g["fpg"].astype(float)))
 
-    rows = []
-    for _, r in rt.iterrows():
+    def _seasons(k, k2, grp):
+        return histg.get((k, grp)) or histg.get((k2, grp))
+
+    # one "half" per (player, group) with MLB history; a two-way player gets two,
+    # each valued on its own curve / attrition / quality tier / games-per-year.
+    # The PRIMARY half (by role) is always kept (preserves single-role behavior);
+    # a SECONDARY half must clear MIN_SECONDARY_GAMES so a position player's
+    # mop-up inning (or a pitcher's token PA) doesn't fabricate a second career.
+    rt_rows = list(rt.iterrows())
+    halves = []
+    for i, (_, r) in enumerate(rt_rows):
         team = str(r.get("team", "")).strip()
         k = norm_name(r["player"]) + "|" + TEAM_ALIAS.get(team, team)
         k2 = norm_name(r["player"]) + "|" + team
-        seasons = hist.get(k) or hist.get(k2)
-        if not seasons:
-            continue   # prospect / no MLB history -> prospect layer
         role = str(r.get("role", "H"))
-        raw, tg = raw_baseline(seasons)
-        rows.append({"player": r["player"], "team": team, "role": role,
-                     "age": r.get("age"), "raw_base": raw, "games": tg,
-                     "is_p": role != "H"})
+        primary = "P" if role != "H" else "H"
+        prl = role if role in ("SP", "RP", "SP/RP") else "SP"
+        for grp, seasons, is_p, games_role in (
+            ("H", _seasons(k, k2, "hitting"), False, "H"),
+            ("P", _seasons(k, k2, "pitching"), True, prl),
+        ):
+            if not seasons:
+                continue
+            raw, tg = raw_baseline(seasons)
+            if grp != primary and tg < MIN_SECONDARY_GAMES:
+                continue   # not a real second career -> ignore
+            halves.append({"pidx": i, "grp": grp, "games_role": games_role,
+                           "is_p": is_p, "raw_base": raw, "games": tg})
 
-    df = pd.DataFrame(rows)
-    if df.empty:
+    hv = pd.DataFrame(halves)
+    if hv.empty:
         if verbose:
             print("[asset] no career matches - check the career cache join")
-        return df
+        return pd.DataFrame()
 
-    # regress raw baseline toward role median for thin samples
-    role_med = df.groupby("role")["raw_base"].median().to_dict()
-    # production tier within group (hitter vs pitcher scales differ): drives the
-    # durability dampener so elite bats/arms carry the lower elite hazard.
-    df["_grp"] = np.where(df["is_p"], "P", "H")
-    df["q_tier"] = df.groupby("_grp")["raw_base"].rank(pct=True).fillna(0.5)
-    base_reg, asset_raw, stream0, conf0 = [], [], [], []
-    for _, r in df.iterrows():
-        thin = THIN_GAMES.get(r["role"], 200)
-        conf = min(r["games"] / thin, 1.0)
-        b = r["raw_base"] * conf + role_med.get(r["role"], 0.0) * (1 - conf)
-        base_reg.append(round(b, 2))
-        conf0.append(round(conf, 2))
-        age = r["age"] if pd.notna(r["age"]) else 28
-        tot, stream = project(b, float(age), r["is_p"], r["q_tier"], horizon, discount)
-        asset_raw.append(round(tot * GAMES_YR.get(r["role"], 120), 0))
-        stream0.append(stream)
-    df["career_baseline"] = base_reg
-    df["asset_raw"] = asset_raw
-    df["dynasty_asset_value"] = pct_rank(asset_raw)
-    df["proj_stream"] = [";".join(map(str, s)) for s in stream0]
+    # regress each half toward the median of its games_role; quality tier is a
+    # percentile WITHIN group (hitter vs pitcher scales differ), so a two-way
+    # player's bat and arm are tiered against their own peers.
+    role_med = hv.groupby("games_role")["raw_base"].median().to_dict()
+    hv["q_tier"] = hv.groupby("grp")["raw_base"].rank(pct=True).fillna(0.5)
+
+    h_raw, h_conf, h_base, h_stream = [], [], [], []
+    for _, h in hv.iterrows():
+        thin = THIN_GAMES.get(h["games_role"], 200)
+        conf = min(h["games"] / thin, 1.0)
+        b = h["raw_base"] * conf + role_med.get(h["games_role"], 0.0) * (1 - conf)
+        rr = rt_rows[int(h["pidx"])][1]
+        age = rr.get("age") if pd.notna(rr.get("age")) else 28
+        tot, stream = project(b, float(age), h["is_p"], h["q_tier"], horizon, discount)
+        h_raw.append(tot * GAMES_YR.get(h["games_role"], 120))
+        h_conf.append(conf); h_base.append(round(b, 2)); h_stream.append(stream)
+    hv["asset_raw_half"] = h_raw
+    hv["half_conf"] = h_conf
+    hv["half_base"] = h_base
+    hv["half_stream"] = h_stream
+
+    # aggregate halves -> one row per player; SUM the asset streams (the two-way
+    # fix). Single-role players are unchanged (one half == old behavior).
+    rows, conf0 = [], []
+    for pidx, grp in hv.groupby("pidx"):
+        rr = rt_rows[int(pidx)][1]
+        role = str(rr.get("role", "H"))
+        g_tot = float(grp["games"].sum())
+        cw = float((grp["half_conf"] * grp["games"]).sum() / g_tot) if g_tot else 0.0
+        hit_half = grp[grp["grp"] == "H"]
+        prim = hit_half if len(hit_half) else grp   # display the bat for two-way
+        rows.append({
+            "player": rr["player"], "team": str(rr.get("team", "")).strip(),
+            "role": role, "age": rr.get("age"), "is_p": role != "H",
+            "games": g_tot, "career_baseline": float(prim["half_base"].iloc[0]),
+            "asset_raw": round(float(grp["asset_raw_half"].sum()), 0),
+            "proj_stream": ";".join(map(str, prim["half_stream"].iloc[0])),
+            "two_way": len(grp) > 1,
+            "baseline_detail": "+".join(f"{x['grp']}:{x['half_base']}"
+                                        for _, x in grp.iterrows()),
+        })
+        conf0.append(round(cw, 2))
+
+    df = pd.DataFrame(rows)
+    df["dynasty_asset_value"] = pct_rank(df["asset_raw"])
 
     # baseline confidence: how much real recent sample backs the baseline vs how
     # much is median-regression filler. INFORMATIONAL -- a LOW means "trust this
@@ -275,12 +321,17 @@ def main():
         return
     os.makedirs(a.outdir, exist_ok=True)
     out = os.path.join(a.outdir, "dynasty_asset_values.csv")
-    df[["player", "team", "role", "age", "career_baseline", "recent_games",
+    df[["player", "team", "role", "age", "two_way", "baseline_detail",
+        "career_baseline", "recent_games",
         "baseline_confidence", "confidence", "asset_raw", "dynasty_asset_value",
         "proj_stream", "consensus_rank", "consensus_value", "dynasty_gap",
         "dynasty_signal"]].to_csv(out, index=False)
     print(f"[asset] valued {len(df)} players with MLB history -> {out}")
     print(f"[asset] horizon={a.horizon}y discount={a.discount}")
+    tw = df[df["two_way"]]
+    if len(tw):
+        print(f"[asset] two-way (summed hitting+pitching): "
+              f"{', '.join(tw['player'] + ' [' + tw['baseline_detail'] + ']')}")
     print("\nTop 12 dynasty assets:")
     print(df.head(12)[["player", "team", "role", "age", "career_baseline",
                        "confidence", "dynasty_asset_value"]].to_string(index=False))
