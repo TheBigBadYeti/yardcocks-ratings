@@ -115,16 +115,22 @@ def build(df, team, posture):
         s = mine.copy()
         s["_nowfut"] = now_minus_future(s)
         # SELL: own players whose value is NOW > FUTURE (sell while market pays),
-        # leaning to vets. Keep young studs (where now ~ future).
+        # leaning to vets. Keep young studs (where now ~ future). A BUY_LOW name is
+        # CONTESTED (market is low on him -> you'd sell low), so it sinks to bottom.
         sell = s[_not_minors(s) & (s["_nowfut"] > 5) & (
-            (s["age"] >= VET) | (s["_nowfut"] > 12))].sort_values(
-            "win_now_score", ascending=False)
+            (s["age"] >= VET) | (s["_nowfut"] > 12))].copy()
+        sell["_contested"] = (_str(sell, "dynasty_signal") == "BUY_LOW")
+        sell = sell.sort_values(["_contested", "win_now_score"],
+                                ascending=[True, False])
         # BUY-LOW: young, high-dynasty players on other rosters; prefer an explicit
-        # BUY_LOW consensus signal if the file has one.
+        # BUY_LOW signal. A SELL_HIGH name is CONTESTED (market rates him ABOVE us ->
+        # you'd overpay), so it sinks to bottom.
         b = others[(others["age"] <= YOUNG + 1) | _is_minors(others)].copy()
+        b["_contested"] = (_str(b, "dynasty_signal") == "SELL_HIGH")
         if "dynasty_signal" in b.columns:
             b["_pri"] = (_str(b, "dynasty_signal") == "BUY_LOW").astype(int)
-            buy = b.sort_values(["_pri", "dynasty_score"], ascending=[False, False])
+            buy = b.sort_values(["_contested", "_pri", "dynasty_score"],
+                                ascending=[True, False, False])
         else:
             buy = b.sort_values("dynasty_score", ascending=False)
         # ADD: FA who help now (tread water / trade bait), startable
@@ -154,7 +160,7 @@ def main():
     lists = build(df, a.team, a.posture)
 
     show = ["player", "team", "position", "role", "age", "win_now_score",
-            "dynasty_score", "_nowfut", "dynasty_signal", "dynasty_gap",
+            "dynasty_score", "_nowfut", "_contested", "dynasty_signal", "dynasty_gap",
             "ros_vor", "ros_pct", "rkov", "owner_status", "two_way"]
     titles = {
         "sell": ("SELL - shop these ("
