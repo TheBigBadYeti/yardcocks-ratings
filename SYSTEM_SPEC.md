@@ -281,6 +281,25 @@ only if leaguemates price off generic ranks. Distinct from `market_gap` (Fantrax
 Ros/rank, *this* league), which is the actual trade market. Use `dynasty_gap` as a
 model-error check, `market_gap` for trades.
 
+### 5.15 Forward-value lens (rest-of-season rate; feeds lineup + posture)
+A separate value channel from win_now. Where `win_now_score` is season-to-date and
+docks volume (FPts percentile) + the −22 injured-status penalty — so an injured-
+but-returning star reads **dead** — forward value is a talent RATE that survives a
+midseason injury. Computed in `compute_forward_value(pool)`, emitted as two columns:
+- `forward_fpg` — injury-neutral regressed FP/G (= `fpg_regressed`, clipped ≥ 0).
+- `ros_vor` — `forward_fpg` above the role's replacement level, where replacement =
+  the rate of the LAST startable player at that role league-wide: `teams × slots`,
+  `forward_value = {teams 14, slots {H 9, SP 6, RP 3}}` → H 126th, SP 84th, RP 42nd.
+  SP/RP is valued at the SP baseline.
+
+Consumers: `optimize_lineup.py` (`forward_fpg × games_this_week` → EWP — **silently
+zeroes every player if the column is absent**, so this lens is load-bearing) and
+`franchise_outlook.py` (sums top-18 `ros_vor` for now-strength). **Two deferred
+terms** (see §8): a *recency blend* (forward_fpg currently ignores recent form, so a
+declining-but-healthy player reads at his fuller-season rate) and an *availability
+weight* (now-strength over-credits IL'd stars at full rate → cross-team posture is
+biased UP for injury-heavy rosters; trust your own read, hand-check others').
+
 ---
 
 ## 6. Key design decisions
@@ -383,19 +402,24 @@ re-valuation, and a separate **pre-draft dynasty board** engine.
   stay buried; pitchers take steeper, earlier attrition.
 
 ### Open items
-1. **Two-way players (Ohtani) — OPEN, highest-impact bug.** The engine values only
-   one half (hitting *or* pitching) and discards the other, floating Ohtani at
-   ~rank 200. Fix = sum his hitting and pitching asset streams. This is the single
-   most-wrong answer on the board and is a genuine bug, not a calibration.
-2. **Attrition premium beyond 31–33 — extrapolated.** The hitter elite-vs-rest
-   premium is measured only at 31–33; 34–36 and 37+ are smooth fits. Pull those
-   cohort buckets to replace the extrapolation if Judge/Ramírez-class landings look
-   off (`backtest_cohort.py --by-quality` already prints them).
-3. **q-tier accuracy audit.** The whole modulation rides on each player's career
-   baseline percentile. Spot-check that scoring-favored vets (high-SB/contact, e.g.
+1. **Two-way asset value — DONE.** `dynasty_asset.py` now values a two-way player's
+   hitting and pitching halves separately (own curve / attrition / quality tier /
+   games-per-year) and SUMS them; `fetch_career.py` pulls both stat groups; a 20-game
+   secondary floor rejects mop-up innings. Ohtani: dynasty ~56→88 (rank ~200→19),
+   `two_way=True`. **Still open:** his *win-now* score remains single-role (start/sit).
+2. **forward_fpg recency blend — OPEN.** Forward value is the injury-neutral talent
+   rate; it does not yet weight recent form, so a declining-but-healthy player reads
+   at his fuller-season rate. Needs the recency cache populated + joined.
+3. **Availability-weighted now-strength — OPEN.** `ros_vor` credits IL'd stars at
+   full rate, so `franchise_outlook` over-rates injury-heavy rosters in cross-team
+   posture. Needs an IL-return / remaining-games input; weight forward value by
+   expected remaining games.
+4. **Attrition premium beyond 31–33 — extrapolated.** 34–36 and 37+ are smooth fits;
+   `backtest_cohort.py --by-quality` prints the real buckets to replace them.
+5. **q-tier accuracy audit.** Spot-check scoring-favored vets (high-SB/contact, e.g.
    Trea Turner) aren't mis-tiered to the population haircut by an injury-shortened
    recent season dragging the recency-weighted baseline down.
-4. **Pitcher durability is tier-flat by design.** The +12pp pitcher premium can't
+6. **Pitcher durability is tier-flat by design.** The +12pp pitcher premium can't
    distinguish a command-and-health ace from the attrition-prone field; credit
    exceptional veteran-arm durability by hand in trades.
 
@@ -404,11 +428,20 @@ re-valuation, and a separate **pre-draft dynasty board** engine.
 ## 9. File inventory
 
 **In Project files (durable, shared):**
-- `inseason_ratings_engine.py` — core logic (now folds in the asset layer).
-- `scripts/dynasty_asset.py` — career→aging→attrition asset model (§5.10–5.14).
+- `inseason_ratings_engine.py` — core logic (asset fold-in §5.11 + forward lens §5.15).
+- `scripts/dynasty_asset.py` — career→aging→attrition asset model, two-way (§5.10–5.14).
+- `scripts/optimize_lineup.py` — weekly 18-man lineup under the 12-start cap (needs
+  `forward_fpg` + a fresh schedule cache).
+- `scripts/franchise_outlook.py` — contend/retool/rebuild posture (sums top-18 `ros_vor`).
+- `scripts/shortlist.py` — posture-aware trade + waiver lists (SELL/BUY/ADD/STASH),
+  de-prioritizes consensus-contradicted picks; schema-robust.
 - `scripts/snapshot.py` — banks immutable dated ratings copies under `data/snapshots/`.
 - `scripts/backtest_aging.py`, `scripts/fetch_cohort.py`, `scripts/backtest_cohort.py`
   — aging-curve validation harness (in-pool + unbiased forward cohort + quality split).
+- `scripts/fetch_career.py` (two-way: both stat groups), `fetch_recency.py`,
+  `fetch_schedule.py`, `identify_exports.py` — data fetch/ID.
+- `docs/WEEKLY_RUNBOOK.md` — the operating manual (cadence, command sequence, the
+  standing caveats the model can't see).
 - Committed input caches: `data/career/` (career_stats.csv, cohort.csv),
   `data/consensus/consensus_ranks.csv`, `data/snapshots/` + manifest.
 - `prospect_ranks.csv` — semi-durable; refresh monthly.
