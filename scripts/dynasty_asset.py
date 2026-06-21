@@ -109,13 +109,26 @@ def survive_annual(age, is_pitcher, q=0.5):
     return min(max(s, SURVIVE_CLIP[0]), SURVIVE_CLIP[1])
 
 
-def raw_baseline(seasons):
-    """seasons: list of (season, games, fpg). Weighted last-3 true-talent FP/G."""
-    last3 = sorted(seasons, key=lambda x: x[0], reverse=True)[:3]
+def raw_baseline(seasons, current_season=None):
+    """seasons: list of (season, games, fpg). Weighted last-3 true-talent FP/G.
+
+    The in-progress CURRENT season is down-weighted by its completeness so a noisy
+    ~70-game midseason partial doesn't drag a vet's baseline (or, symmetrically,
+    inflate a hot start). Completeness = current games / the player's OWN prior
+    full-season level (role-agnostic: a starter's 32 and a reliever's 65 both
+    calibrate themselves). Extra weight factor = (g / full)^1, on top of the usual
+    games weighting, so a 20-game April sample is nearly ignored, a 70-game June
+    sample is roughly halved, and a finished 150-game season is back to full weight.
+    Past injury-shortened seasons are untouched (only season == current_season)."""
+    ordered = sorted(seasons, key=lambda x: x[0], reverse=True)
+    last3 = ordered[:3]
+    prior_full = max((g for s, g, _ in ordered[1:] if g > 0), default=0.0)
     num = den = 0.0
     total_games = 0.0
-    for i, (_, g, fpg) in enumerate(last3):
+    for i, (s, g, fpg) in enumerate(last3):
         w = RECENCY_W[i] * g
+        if current_season is not None and s == current_season and prior_full > 0:
+            w *= min(g / prior_full, 1.0)      # de-weight the in-progress partial
         num += w * fpg
         den += w
         total_games += g
@@ -163,6 +176,9 @@ def compute_asset_values(rt, career_path, consensus_path=None,
     # two-way fetch in fetch_career.py now does.)
     if "group" not in cr.columns:
         cr["group"] = "hitting"
+    # the in-progress season (max in the cache) is de-weighted in raw_baseline by
+    # its completeness so a noisy midseason partial doesn't drag/inflate baselines
+    current_season = int(cr["season"].max()) if len(cr) else None
     histg = {}
     for (k, grp), g in cr.groupby(["k", "group"]):
         histg[(k, grp)] = list(zip(g["season"].astype(int), g["games"].astype(float),
@@ -191,7 +207,7 @@ def compute_asset_values(rt, career_path, consensus_path=None,
         ):
             if not seasons:
                 continue
-            raw, tg = raw_baseline(seasons)
+            raw, tg = raw_baseline(seasons, current_season)
             if grp != primary and tg < MIN_SECONDARY_GAMES:
                 continue   # not a real second career -> ignore
             halves.append({"pidx": i, "grp": grp, "games_role": games_role,

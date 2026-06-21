@@ -28,10 +28,11 @@ def build(cr, group):
     """Per-player recency-weighted rate + within-group percentile for one group."""
     rows = []
     sub = cr[cr["group"] == group]
+    current_season = int(cr["season"].max()) if len(cr) else None
     for name, g in sub.groupby("name"):
         seasons = list(zip(g["season"].astype(int), g["games"].astype(float),
                            g["fpg"].astype(float)))
-        raw, tg = da.raw_baseline(seasons)
+        raw, tg = da.raw_baseline(seasons, current_season)
         last3 = sorted(seasons, key=lambda x: x[0], reverse=True)[:3]
         best3 = max((f for _, _, f in last3), default=0.0)
         recent = sorted(seasons, key=lambda x: x[0], reverse=True)[0]
