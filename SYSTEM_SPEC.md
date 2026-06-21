@@ -203,8 +203,13 @@ production stream**, not just his current line. Computed separately from the
 engine and folded into dynasty_score (§5.11). Pipeline per player:
 
 1. **Career baseline** — recency-weighted true-talent FP/G over the last 3 seasons,
-   weights `RECENCY_W = [3, 2, 1]` × games. Regressed toward the role median for
-   thin samples: `conf = min(career_games / THIN, 1)`,
+   weights `RECENCY_W = [3, 2, 1]` × games. The **in-progress** current season is
+   additionally scaled by its completeness (games ÷ the player's own prior full-
+   season level), so a noisy ~70-game midseason partial is discounted (and ramps to
+   full weight as the season finishes) — this corrects a systematic midseason bias
+   that dragged cold-start vets and inflated hot starts; the cost is deliberate
+   slowness to react to genuine early-season change (see runbook caveat 8). Regressed
+   toward the role median for thin samples: `conf = min(career_games / THIN, 1)`,
    `THIN_GAMES = {H 250, SP 60, RP 150, SP/RP 100}`. This `conf` is surfaced as
    `baseline_confidence` (§5.13) and also drives the fold-in alpha.
 2. **Skill curve** (age-decline of *rate*, separate from survival). Anchors

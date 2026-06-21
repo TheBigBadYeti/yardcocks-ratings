@@ -119,3 +119,11 @@ python scripts\fetch_career.py --ratings data\processed\current_player_ratings.c
    (summed halves) but his *win-now* reflects one role — relevant for start/sit.
 7. **forward_fpg is not yet recency-weighted** — a genuinely declining (not injured)
    player still reads at his fuller-season rate until the recency blend lands.
+8. **Midseason: the model is deliberately slow to react to early-season change.**
+   `raw_baseline` de-weights the in-progress season by completeness, so a ~70-game
+   hot start or cold slump is heavily discounted until the sample fills (≈full
+   weight by Aug/Sep). Cost for a REBUILDER: genuine young breakouts read LOW and
+   won't appear in the BUY shortlist — find them in the audit's drag/slipped tables
+   (hot recent partial) and judge them yourself. Also, role-changed players (e.g. a
+   reliever converted to closer) are under-rated harder, since the fix leans on the
+   now-irrelevant prior — hand-adjust those.
