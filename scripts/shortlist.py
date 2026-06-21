@@ -34,6 +34,10 @@ REQUIRED = ["player", "win_now_score", "dynasty_score", "owner_status"]
 # posture knobs: youth ceiling for buy/stash, vet floor for sell
 YOUNG = 25
 VET = 29
+# a YOUNG player (age < VET) with dynasty at/above this is a core KEEPER, not a sell
+# candidate, even if his win-now currently outscores his dynasty. Aging players with
+# the same dynasty are NOT exempt -- they're exactly who you sell while value is high.
+KEEP_DYNASTY = 60
 
 
 def _num(df, c):
@@ -115,9 +119,12 @@ def build(df, team, posture):
         s = mine.copy()
         s["_nowfut"] = now_minus_future(s)
         # SELL: own players whose value is NOW > FUTURE (sell while market pays),
-        # leaning to vets. Keep young studs (where now ~ future). A BUY_LOW name is
-        # CONTESTED (market is low on him -> you'd sell low), so it sinks to bottom.
-        sell = s[_not_minors(s) & (s["_nowfut"] > 5) & (
+        # leaning to vets. EXCLUDE young keepers: a player under VET with dynasty
+        # >= KEEP_DYNASTY is your core, even if win-now currently outscores dynasty
+        # (this is the Meyer/Lee/Arrighetti trap -- a young arm pitching well is not
+        # a sell). Aging players with the same dynasty stay sellable (value peaks now).
+        keep_young = (s["age"] < VET) & (s["dynasty_score"] >= KEEP_DYNASTY)
+        sell = s[_not_minors(s) & ~keep_young & (s["_nowfut"] > 5) & (
             (s["age"] >= VET) | (s["_nowfut"] > 12))].copy()
         sell["_contested"] = (_str(sell, "dynasty_signal") == "BUY_LOW")
         sell = sell.sort_values(["_contested", "win_now_score"],
