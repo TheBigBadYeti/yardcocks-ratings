@@ -25,6 +25,9 @@ import datetime as dt
 import pandas as pd
 import numpy as np
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from health import apply_health
+
 HIT_SCARCITY = ["C", "SS", "2B", "3B", "1B", "OF", "OF", "OF", "UT"]  # fill scarce first
 SP_SLOTS, RP_SLOTS, START_CAP, TURN = 6, 3, 12, 5
 ELIGIBLE_STATUS = {"active", "reserve"}
@@ -110,6 +113,8 @@ def build_pool(ratings, games, dates, week_end, probables, team):
     df = pd.read_csv(ratings)
     df = df[df["owner_status"].astype(str).str.fullmatch(team, case=False, na=False)]
     df = df[df["roster_status"].astype(str).str.lower().isin(ELIGIBLE_STATUS)].copy()
+    df = apply_health(df)                      # marks health_excluded; reports IL conflicts
+    df = df[~df["health_excluded"]].copy()     # drop genuinely injured from startable pool
 
     players, misses = [], []
     for _, r in df.iterrows():

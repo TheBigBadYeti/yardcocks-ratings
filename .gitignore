@@ -16,6 +16,9 @@ data/processed/*.csv
 # Claude Code — machine-local settings stay off the repo
 .claude/settings.local.json
 
+# Injuries — regenerated each run, never committed
+data/injuries/
+
 # Python
 .venv/
 __pycache__/

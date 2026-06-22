@@ -8,8 +8,8 @@ Run the weekly data refresh. New Fantrax exports are in data/raw.
 1. Run scripts/identify_exports.py on data/raw and show me the file->flag mapping.
    STOP and wait for my confirmation before running anything else -- a mis-mapped
    export silently corrupts the entire run, so this is the one manual checkpoint.
-2. After I confirm: fetch the recency and schedule caches (fetch_recency.py,
-   fetch_schedule.py).
+2. After I confirm: fetch the recency, schedule, and injury caches (fetch_recency.py,
+   fetch_schedule.py, fetch_injuries.py).
 3. Run inseason_ratings_engine.py with the confirmed flags to regenerate
    data/processed/current_player_ratings.csv.
 4. Run scripts/snapshot.py to bank a dated copy.
