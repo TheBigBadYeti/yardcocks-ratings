@@ -69,52 +69,79 @@ def val(row, appetite):
     return appetite * row["win_now_score"] + (1 - appetite) * row["dynasty_score"]
 
 
-def find_packages(df, me, my_appetite, partner, p_app, n_targets=2, max_send=3):
-    """Build a balanced package: anchor on the young pieces we covet from the
-    partner, then add our sheddable win-now until the partner comes out fair by
-    THEIR appetite. Verify we come out ahead by OURS."""
+def _max_sendable(mine, role):
+    """How many at a role we can ship before dropping below our own slot floor."""
+    return max(0, _startable(mine, role) - SLOTS[role])
+
+
+def _build(targets, send_pool, my_app, p_app, cap_by_role):
+    """Minimal package: take the fewest win-now pieces (largest-first) that make the
+    partner fair by THEIR appetite, without exceeding our per-role send cap."""
+    R = list(targets)
+    r_them = sum(val(r, p_app) for r in R)
+    S, s_them, used = [], 0.0, {"SP": 0, "RP": 0, "H": 0}
+    for _, r in send_pool.iterrows():
+        if s_them >= r_them:
+            break
+        role = _role_of(r)
+        if used[role] >= cap_by_role.get(role, 99):
+            continue                      # would gut our own roster at this role
+        S.append(r); s_them += val(r, p_app); used[role] += 1
+    if not S or s_them < r_them:
+        return None                       # can't reach fair without gutting ourselves
+    return {"R": R, "S": S, "r_them": r_them, "s_them": s_them,
+            "r_me": sum(val(r, my_app) for r in R),
+            "s_me": sum(val(r, my_app) for r in S)}
+
+
+def find_packages(df, me, my_appetite, partner, p_app):
+    """Generate several candidate constructions (anchor on 1 young piece, or 2) so a
+    single greedy overshoot can't masquerade as 'no deal'. Returns a list; main vets
+    each and surfaces the best SURVIVOR."""
     mine = df[df["owner_status"] == me].copy()
     theirs = df[df["owner_status"] == partner].copy()
 
-    # what we'd want from them: young (<=27) high-dynasty pieces
     want = theirs[(_num(theirs, "age") <= 27) | ~_not_minors(theirs)]
     want = want.sort_values("dynasty_score", ascending=False).head(6)
-    # what we'd send: our win-now surplus -- high win_now, NOT young keepers
     keep = (_num(mine, "age") < 29) & (mine["dynasty_score"] >= 60)
     send_pool = mine[_not_minors(mine) & ~keep & (
         mine["win_now_score"] > mine["dynasty_score"] + 5)]
     send_pool = send_pool.sort_values("win_now_score", ascending=False)
     if want.empty or send_pool.empty:
-        return None
+        return []
 
-    # anchor on the single best young target, then add a 2nd if value allows
-    target = want.iloc[0]
-    R = [target]
-    if len(want) > 1 and val(want.iloc[1], p_app) + val(target, p_app) < \
-            send_pool.head(max_send).apply(lambda r: val(r, p_app), axis=1).sum():
-        R.append(want.iloc[1])
-    r_to_partner = sum(val(r, p_app) for r in R)
-
-    # greedily add our pieces until the partner is fair-or-ahead by THEIR appetite
-    S, s_to_partner = [], 0.0
-    for _, r in send_pool.iterrows():
-        if s_to_partner >= r_to_partner or len(S) >= max_send:
-            break
-        S.append(r)
-        s_to_partner += val(r, p_app)
-    if not S:
-        return None
-
-    return {
-        "R": R, "S": S,
-        "r_them": r_to_partner, "s_them": s_to_partner,
-        "r_me": sum(val(r, my_appetite) for r in R),
-        "s_me": sum(val(r, my_appetite) for r in S),
-    }
+    cap = {role: _max_sendable(mine, role) for role in ("SP", "RP", "H")}
+    cands, seen = [], set()
+    for n in (1, 2):
+        if len(want) < n:
+            continue
+        c = _build([want.iloc[i] for i in range(n)], send_pool, my_appetite, p_app, cap)
+        if not c:
+            continue
+        key = (tuple(r["player"] for r in c["S"]), tuple(r["player"] for r in c["R"]))
+        if key not in seen:
+            seen.add(key); cands.append(c)
+    return cands
 
 
 def _startable(team_df, role):
     return int(_not_minors(team_df[team_df["role"].isin(ROLE_MEMBERS[role])]).sum())
+
+
+def _marginal_starter(team_df, role, appetite):
+    """Value of the partner's WEAKEST current starter at a role (their slot-th best,
+    by their own posture weighting). If they roster fewer than slots at the role,
+    they have a literal hole -> return 0 so anything decent reads as an upgrade.
+    This is the honest 'need' signal: do they need an UPGRADE here, not how many
+    bodies do they roster."""
+    sub = team_df[team_df["role"].isin(ROLE_MEMBERS[role])].copy()
+    sub = sub[_not_minors(sub)]
+    if sub.empty:
+        return 0.0
+    v = (appetite * pd.to_numeric(sub["win_now_score"], errors="coerce")
+         + (1 - appetite) * pd.to_numeric(sub["dynasty_score"], errors="coerce"))
+    top = v.nlargest(SLOTS[role])
+    return float(top.min()) if len(top) >= SLOTS[role] else 0.0
 
 
 def _role_of(r):
@@ -123,7 +150,7 @@ def _role_of(r):
     return "RP" if r["role"] in ROLE_MEMBERS["RP"] else "H"
 
 
-def vet_package(df, me, partner, S, R):
+def vet_package(df, me, partner, p_app, S, R, r_me, s_me):
     """Run a candidate package through every CHECK WE CAN COMPUTE. Returns a list of
     (name, hard, ok, detail). hard=True means a failure should KILL the package
     (guts your roster / they don't need it); hard=False is a flag to verify. The
@@ -142,13 +169,17 @@ def vet_package(df, me, partner, S, R):
                            f"{left} startable {role} left vs {SLOTS[role]} slots"
                            + ("" if left >= SLOTS[role] else " -- this guts you")))
 
-    # HARD 2 -- their need: are they already stacked where you're sending?
+    # HARD 2 -- their need: would your guy UPGRADE their worst current starter?
+    # (NOT "do they roster more arms than slots" -- every team does. Quality, not bodies.)
     for role in send_roles:
-        cnt = _startable(theirs, role)
-        need = cnt <= SLOTS[role] + 1
+        sent_here = [r for r in S if _role_of(r) == role]
+        best_sent = max(val(r, p_app) for r in sent_here)
+        marginal = _marginal_starter(theirs, role, p_app)
+        need = best_sent > marginal
         checks.append((f"their {role} need", True, need,
-                       f"they have {cnt} startable {role}"
-                       + ("" if need else " -- STACKED, won't value it")))
+                       f"your best {role} ({best_sent:.0f}) vs their #{SLOTS[role]} "
+                       f"starter ({marginal:.0f})"
+                       + ("" if need else " -- no upgrade, won't value it")))
 
     # SOFT -- is each target a redundancy (movable) or their scarce cornerstone?
     for r in R:
@@ -164,6 +195,13 @@ def vet_package(df, me, partner, S, R):
                    for k in ("inj", "il", "60-day", "dl"))]
     checks.append(("injuries", False, not hurt,
                    "none flagged" if not hurt else f"{', '.join(hurt)} -- re-value"))
+
+    # HARD 3 -- is this actually IN YOUR FAVOR? the entire point of the deal.
+    # A package that's fair to them but flat/negative for you is not a deal you want.
+    gain = r_me - s_me
+    checks.append(("your value", True, gain > 0,
+                   f"you {'gain' if gain > 0 else 'LOSE'} {gain:+.0f} by your own "
+                   f"valuation" + ("" if gain > 0 else " -- works for them, not you")))
     return checks
 
 
@@ -197,44 +235,70 @@ def main():
     print(partners.head(a.partners)[["owner", "now_rank", "fut_rank",
                                      "appetite"]].to_string(index=False))
 
+    any_survivor = False
     for _, p in partners.head(a.partners).iterrows():
-        pk = find_packages(df, a.team, my_app, p["owner"], p["appetite"])
+        cands = find_packages(df, a.team, my_app, p["owner"], p["appetite"])
         print(f"\n{'-'*64}\n{p['owner']}  (appetite {p['appetite']}, "
               f"now #{int(p['now_rank'])})")
-        if not pk:
+        if not cands:
             print("  no complementary package (no fit between your surplus and "
                   "their youth)")
             continue
+
+        # vet every construction; separate survivors from killed
+        vetted = []
+        for c in cands:
+            checks = vet_package(df, a.team, p["owner"], p["appetite"], c["S"], c["R"], c["r_me"], c["s_me"])
+            hard_fail = [ck for ck in checks if ck[1] and not ck[2]]
+            vetted.append((c, checks, hard_fail))
+        survivors = [v for v in vetted if not v[2]]
+
+        if survivors:
+            any_survivor = True
+            # best survivor = biggest win for us by our own appetite
+            c, checks, _ = max(survivors, key=lambda v: v[0]["r_me"] - v[0]["s_me"])
+            tag = f"  ({len(survivors)} of {len(cands)} constructions survived)"
+        else:
+            # show the least-bad killed one so you see WHY, honestly
+            c, checks, _ = min(vetted, key=lambda v: len(v[2]))
+            tag = "  (all constructions KILLED -- shown: closest to viable)"
+
         give = ", ".join(f"{r['player']} ({int(r.win_now_score)}wn/"
-                         f"{int(r.dynasty_score)}dy)" for r in pk["S"])
+                         f"{int(r.dynasty_score)}dy)" for r in c["S"])
         get = ", ".join(f"{r['player']} ({int(r.win_now_score)}wn/"
-                        f"{int(r.dynasty_score)}dy)" for r in pk["R"])
+                        f"{int(r.dynasty_score)}dy)" for r in c["R"])
+        print(tag)
         print(f"  YOU SEND : {give}")
         print(f"  YOU GET  : {get}")
-        print(f"  by THEIR appetite: they receive {pk['s_them']:.0f} for "
-              f"{pk['r_them']:.0f} given  -> {'FAIR+' if pk['s_them'] >= pk['r_them'] else 'short'}")
-        print(f"  by YOUR  appetite: you receive {pk['r_me']:.0f} for "
-              f"{pk['s_me']:.0f} given  -> {'WIN' if pk['r_me'] > pk['s_me'] else 'flat'} "
-              f"(+{pk['r_me'] - pk['s_me']:.0f})")
-        # value margin: barely-fair to them is the FLOOR, not a yes
-        margin = (pk["s_them"] - pk["r_them"]) / max(pk["r_them"], 1)
+        print(f"  by THEIR appetite: they receive {c['s_them']:.0f} for "
+              f"{c['r_them']:.0f} given  -> {'FAIR+' if c['s_them'] >= c['r_them'] else 'short'}")
+        print(f"  by YOUR  appetite: you receive {c['r_me']:.0f} for "
+              f"{c['s_me']:.0f} given  -> {'WIN' if c['r_me'] > c['s_me'] else 'flat'} "
+              f"(+{c['r_me'] - c['s_me']:.0f})")
+        margin = (c["s_them"] - c["r_them"]) / max(c["r_them"], 1)
         if 0 <= margin < 0.08:
             print(f"  value margin to them only +{margin*100:.0f}% -- barely fair; "
                   f"since your win-now is cheap, consider sweetening to seal it")
 
-        checks = vet_package(df, a.team, p["owner"], pk["S"], pk["R"])
-        hard_fail = [c for c in checks if c[1] and not c[2]]
+        hard_fail = [ck for ck in checks if ck[1] and not ck[2]]
         print("  VET:")
         for name, hard, ok, detail in checks:
             mark = "OK " if ok else ("XX" if hard else "?? ")
             print(f"    [{mark}] {name}: {detail}")
         if hard_fail:
-            print(f"  VERDICT: KILLED -- fails {', '.join(c[0] for c in hard_fail)}. "
-                  f"Don't propose as-is.")
+            print(f"  VERDICT: KILLED -- fails {', '.join(ck[0] for ck in hard_fail)}. "
+                  f"No viable construction with this partner.")
         else:
             print("  VERDICT: passes every computable check. RESIDUAL (unknowable, "
                   "verify yourself): does he value his guys as the model does, and "
                   "will he deal at all?")
+
+    if not any_survivor:
+        print(f"\n[trade] No partner in the top {a.partners} yielded a vetted package. "
+              "Before concluding the market is closed: widen --partners, and remember "
+              "the unmovable wall is real ONLY if their #N starters genuinely outscore "
+              "your chips. A thin market means hold and wait for an injury to open a "
+              "hole -- it does NOT mean force a lesser deal.")
     print("\n[trade] computable checks are vetted above; the counterparty's true "
           "valuation and willingness are NOT calculable -- they're flagged, not faked.")
 
