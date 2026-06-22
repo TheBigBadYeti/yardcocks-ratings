@@ -51,25 +51,37 @@ def team_ids():
     return [(t["id"], t.get("abbreviation", "")) for t in data.get("teams", [])]
 
 
+# MLB Stats API status codes for genuine IL placements. RA (rehab assignment)
+# deliberately excluded — those players are about to return, not genuinely unavailable.
+IL_CODES = {"D7", "D10", "D15", "D60", "ILF"}
+
+
 def il_from_roster(team_id, today):
-    """Return IL rows for one team. status.description carries the live state,
-    e.g. 'Injured List 10-Day' / '... 60-Day' / 'Active' / 'Minor League'."""
+    """Return IL rows for one team. Keyed on status.code, not description text.
+    Codes confirmed from live API: D7/D10/D15/D60 = day ILs, ILF = full season."""
     url = f"{API}/teams/{team_id}/roster?rosterType=fullRoster&date={today}"
     rows = []
     for e in _get(url).get("roster", []):
-        desc = (e.get("status", {}) or {}).get("description", "") or ""
-        code = (e.get("status", {}) or {}).get("code", "") or ""
-        if "injured list" in desc.lower():
-            person = e.get("person", {})
-            il_type = "".join(c for c in desc if c.isdigit()) or "?"
-            rows.append({
-                "mlbam_id": person.get("id", ""),
-                "name": person.get("fullName", ""),
-                "norm_name": norm_name(person.get("fullName", "")),
-                "il_type": f"{il_type}-day",
-                "status_code": code,
-                "status_desc": desc,
-            })
+        s = e.get("status", {}) or {}
+        code = (s.get("code", "") or "").strip().upper()
+        desc = (s.get("description", "") or "").strip()
+        if code not in IL_CODES:
+            continue
+        person = e.get("person", {})
+        if code == "ILF":
+            il_type = "full-season"
+        elif code.startswith("D") and code[1:].isdigit():
+            il_type = f"{code[1:]}-day"
+        else:
+            il_type = code.lower()
+        rows.append({
+            "mlbam_id": person.get("id", ""),
+            "name": person.get("fullName", ""),
+            "norm_name": norm_name(person.get("fullName", "")),
+            "il_type": il_type,
+            "status_code": code,
+            "status_desc": desc,
+        })
     return rows
 
 
