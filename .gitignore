@@ -23,3 +23,6 @@ data/injuries/
 .venv/
 __pycache__/
 *.pyc
+
+# track the ratings output so cloud can read it directly
+!data/processed/current_player_ratings.csv
