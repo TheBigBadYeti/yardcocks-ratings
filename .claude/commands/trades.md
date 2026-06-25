@@ -1,24 +1,36 @@
 ---
-description: Vetted trade packages with each likely partner (dual-valuation + gauntlet)
+description: Trade tooling — outbound finder, inbound inquiry eval, offer grading
 allowed-tools: Bash, Read
 ---
-Run scripts/trade_finder.py against the current ratings (team Kipp, posture rebuild).
-It proposes complementary packages with the most natural partners (contenders who'll
-pay youth for our win-now surplus), values each from BOTH sides' postures, and runs a
-computable VET gauntlet (our roster cover, their positional need, target movability,
-injuries) -- KILLING any package that fails a hard check.
+Three modes of scripts/trade_finder.py. Read my request and pick the mode:
 
-Present ONLY the packages that survived (VERDICT: passes). For each, state plainly:
-- why it works for both sides (their win-now gain vs our dynasty gain, from the two
-  valuations printed),
-- the residual UNKNOWABLES the script flags -- their true valuation and willingness.
-  Do not present these as solved; they are mine to verify, not the model's to assert.
+OUTBOUND (default — "find me trades", "who should I deal with"):
+  python scripts/trade_finder.py outbound
+  Scans the league for contenders whose holes our win-now surplus fills.
 
-Then add judgment the script can't:
-- If a package is "barely fair" to them, note that our win-now is cheap to us, so
-  SWEETENING with an extra arm can seal it while we still win big on dynasty.
-- Layer in injury news or anything I've told you about a specific owner this session.
+INQUIRY ("X asked about my guy", "is anyone on Y's team worth trading Z for"):
+  python scripts/trade_finder.py inquiry --partner <owner> --send "<my player>"
+  Sets the bar at our player's value to US, lists which of their players clear it,
+  tags each as gettable (depth) vs core (won't move), and vets the headline 1-for-1.
+  It is allowed to answer "nothing here clears the bar" — present that honestly,
+  don't manufacture a target.
 
-Do NOT invent confidence about whether a partner will say yes. A vetted package is a
-well-prepared offer, not a guaranteed deal. If every package was KILLED, say so and
-show why -- don't manufacture a deal to fill the space.
+OFFER ("they offered me A for B", grade a concrete package):
+  python scripts/trade_finder.py offer --partner <owner> --send "<my player(s)>" --get "<their player(s)>"
+  Grades it by OUR posture (fair = a value gain for us), runs the gauntlet (cover,
+  positional fit on what we receive, roster-drop flag, injuries), and shows what it
+  looks like from THEIR side too.
+
+Player names are partial-match (e.g. "Arozarena", "Basallo"); comma-separate multiples.
+Posture defaults to our standings-derived rebuild; override with --posture if it's shifted.
+
+When presenting results:
+- Lead with the verdict the script computed; don't soften a DECLINE or invent a yes.
+- The fair bar is OUR posture (dynasty-weighted in a rebuild). The "gettability" and
+  "to THEM" lines are THEIR posture — use them to judge realism, not fairness to us.
+- Surface the UNKNOWABLES the script flags (their true valuation, willingness) as mine
+  to verify — never assert them solved.
+- On an inquiry, the right counsel is almost always: let THEM open, and hold the bar.
+- On a roster-drop flag, name the suggested cut as MY decision, not the script's.
+- Confirm the received player's fit with our OBP/contact/SB scoring before any accept —
+  the dynasty score is league-agnostic; our league isn't.
