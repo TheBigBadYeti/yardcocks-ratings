@@ -22,6 +22,18 @@ import sys
 import numpy as np
 import pandas as pd
 
+try:                                    # negotiation memory is optional
+    import trade_log
+except Exception:
+    trade_log = None
+
+
+def _history(partner):
+    if trade_log is None:
+        return ""
+    block = trade_log.context_block(partner)
+    return ("\n" + block + "\n") if block else ""
+
 OWNERS = {"CLANK", "Coop", "GoldTY", "Greenbet", "Hutch", "JMerkle", "Jpanner",
           "KRetiree", "Kipp", "Sasso", "Sethmc44", "joeybats", "kyfaess", "zyoung51"}
 
@@ -330,7 +342,8 @@ def mode_inquiry(df, me, my_app, partner, p_app, send_names):
     print(f"=== INQUIRY: {partner} wants {sent} ===")
     print(f"Bar: a return must beat {bar:.0f} value-to-YOU ({me} posture) to be a gain.")
     print(f"{partner} posture read: appetite {p_app} "
-          f"({'win-now' if p_app > 0.6 else 'rebuild' if p_app < 0.35 else 'middling'}).\n")
+          f"({'win-now' if p_app > 0.6 else 'rebuild' if p_app < 0.35 else 'middling'}).")
+    print(_history(partner))
 
     theirs = df[df["owner_status"] == partner].copy()
     theirs["v_me"] = theirs.apply(lambda r: val(r, my_app), axis=1)
@@ -373,6 +386,7 @@ def mode_offer(df, me, my_app, partner, p_app, send_names, get_names):
     S = [_resolve(df, nm, me) for nm in send_names]
     R = [_resolve(df, nm, partner) for nm in get_names]
     print(f"=== OFFER from {partner} ===")
+    print(_history(partner), end="")
     print("  YOU SEND : " + ", ".join(f"{r['player']} ({int(r.win_now_score)}wn/"
                                        f"{int(r.dynasty_score)}dy)" for r in S))
     print("  YOU GET  : " + ", ".join(f"{r['player']} ({int(r.win_now_score)}wn/"
