@@ -45,10 +45,18 @@ Clean-room rebuild of an older tool ("Codex") on a DLP-locked work machine.
 - `SYSTEM_SPEC.md` — full formula spec + data conventions. Source of truth.
 - `data/prospects/prospect_ranks.csv` — durable; refresh ~monthly (committed).
 - `data/raw/` — weekly Fantrax exports (gitignored, volatile).
-- `data/processed/` — engine outputs (gitignored, regenerated each run).
+- `data/processed/` — engine outputs, regenerated each run. Only
+  `current_player_ratings.csv` is tracked (readers pull it via `/sync`); the rest local.
 - `docs/` — league rules PDF.
 - `.claude/commands/` — the workflow steps (refresh, ratings, lineups, trades).
 
 ## Workflow steps
-The old "5 chats" are now slash commands in `.claude/commands/`, run in order:
-`/refresh` (produces the CSVs) → `/ratings` → `/lineups` → `/trades`.
+Slash commands in `.claude/commands/`; run `/gm` for the full annotated list.
+- **`/refresh`** — the single writer command: ingest exports → regenerate → publish to
+  GitHub. Run-from-anywhere (desktop or cloud with push access). Supersedes the old
+  `/load` and `/publish`, which are retired.
+- **`/sync`** — read-only reader: pull the latest published ratings (cloud/phone).
+- Decisions read the published ratings: `/lineups`, `/trades`, `/waivers`, `/posture`,
+  `/ratings`, `/audit`. Memory: `/log-trade`.
+
+Typical week: supply exports → `/refresh` → `/lineups` → `/trades` → `/waivers`.

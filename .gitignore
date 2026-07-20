@@ -2,8 +2,10 @@
 !data/raw/*.csv
 !data/raw/.gitkeep
 
-# Processed outputs — regenerated each run, not committed (snapshots go to data/history/)
+# Processed outputs — regenerated each run. Only the published ratings file is tracked
+# (readers pull it via /sync); everything else in data/processed/ stays local.
 data/processed/*.csv
+!data/processed/current_player_ratings.csv
 
 # News — recent_moves.csv committed each refresh
 !data/news/*.csv
