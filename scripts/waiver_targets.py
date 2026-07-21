@@ -63,6 +63,29 @@ def keeper_quality(rec):
         not np.isnan(dyn) and dyn >= KEEPER_DYN)
 
 
+def breakout_boost(rec):
+    """A young player producing ABOVE his season rate over a real sample may be a
+    lasting breakout, not a one-week fluke -- nudge his add-value up, but cap it so
+    recent form BALANCES season+future value rather than dominating it."""
+    rf, rg = rec.get("recent_fpg"), rec.get("recent_games")
+    if rf is None or np.isnan(rf) or (rg is not None and not np.isnan(rg) and rg < 5):
+        return 0.0
+    lift = rf - _f(rec.get("ffpg"), 0.0)          # recent minus season per-game
+    if lift <= 0:
+        return 0.0
+    age = _f(rec.get("age"))
+    youth = 1.0 if age <= 24 else 0.5 if age <= 27 else 0.2 if not np.isnan(age) else 0.4
+    return min(lift * 1.3 * youth, 12.0)
+
+
+def add_value(rec, app):
+    """Value of ADDING this player: season-now + future (the dual valuation, same as
+    trades) with a capped breakout boost. NOT this-week EWP -- an add is a roster
+    commitment, judged on total value, not one week of projected starts."""
+    base = app * _f(rec.get("win_now"), 0.0) + (1 - app) * _f(rec.get("dynasty"), 0.0)
+    return base, breakout_boost(rec)
+
+
 def _starts(rec):
     return rec["role"] in ("SP", "SP/RP")   # will accrue a start this week
 
@@ -95,12 +118,12 @@ def dedupe(cands):
 
 
 def load_recency(path="data/recency/recent_fpg.csv"):
-    """name -> recent per-game FPts, so we can catch a hot call-up the season rate
-    (and thus win_now/dynasty/EWP) still fades."""
+    """name -> (recent per-game FPts, recent games). The sample size lets us tell a
+    durable breakout from a one-week fluke."""
     if not os.path.exists(path):
         return {}
     d = pd.read_csv(path, encoding="utf-8")
-    return {ol.norm_name(r["name"]): _f(r.get("recent_fpg"))
+    return {ol.norm_name(r["name"]): (_f(r.get("recent_fpg")), _f(r.get("recent_games")))
             for _, r in d.iterrows()}
 
 
@@ -122,7 +145,8 @@ def build_fa_pool(df_all, games, dates, week_end, probables, recency):
     pool = []
     for _, r in fa.iterrows():
         rec = ol.make_rec(r, games, dates, week_end, probables)[0]
-        rec["recent_fpg"] = recency.get(ol.norm_name(rec["player"]))
+        rf, rg = recency.get(ol.norm_name(rec["player"]), (np.nan, np.nan))
+        rec["recent_fpg"], rec["recent_games"] = rf, rg
         pool.append(rec)
     return pool
 
@@ -201,72 +225,75 @@ def main():
           + ("  (FULL -- each add needs a drop below)" if needs["roster_full"]
              else f"  ({needs['roster_limit'] - needs['roster_count']} open)"))
 
-    # 1) OPENINGS -- collapse identical slots, fill regardless of posture
-    print("\n--- FILL THESE OPENINGS (unfilled = 0 pts; posture-agnostic) ---")
-    opens = Counter((s["slot"], s["eligible"]) for s in needs["unfilled"])
-    if not opens:
-        print("   none -- lineup is fully fielded.")
-    for (slot, elig), count in opens.items():
-        cands = dedupe(sorted([f for f in fa if fa_fits(f, elig) and f["ewp"] > 0],
-                              key=lambda x: _sort_key(x, elig)))[:a.n]
-        need_note = f"  (you have {count} -- pick {count})" if count > 1 else ""
-        pitch = "  [starters only -- reliever appearances don't fill a slot here]" \
-            if elig in ("SP", "RP") else ""
-        print(f"  {slot} slot, needs {elig}{need_note}{pitch}:")
-        for c in cands:
-            print(_line(c))
-        if not cands:
-            print("     (no eligible starting FA with a game this week)")
-
-    # 2) UPGRADES -- weak filled slots, gated by churn/posture, hard-capped & deduped
-    if a.churn != "empty":
-        want_keeper = (a.churn == "keeper")
-        ups = []
-        for s in needs["slots"]:
-            if not s["filled"]:
-                continue
-            for f in fa:
-                if not fa_fits(f, s["eligible"]) or f["ewp"] <= s["bar_ewp"] * UPGRADE_MARGIN:
-                    continue
-                if want_keeper and not keeper_quality(f):
-                    continue
-                ups.append((s, f, f["ewp"] - s["bar_ewp"]))
-        # best gain per FA, then top a.n overall
-        best = {}
-        for s, f, gain in ups:
-            if f["player"] not in best or gain > best[f["player"]][2]:
-                best[f["player"]] = (s, f, gain)
-        top = sorted(best.values(), key=lambda x: -x[2])[:a.n]
-        print(f"\n--- UPGRADES over weak slots "
-              f"({'keeper-quality only' if want_keeper else 'any upgrade'}) ---")
-        if not top:
-            print("   none clear the bar -- your starters hold their slots.")
-        for s, f, gain in top:
-            print(_line(f, extra=f"   -> over {s['slot']} "
-                                 f"({s['player']} @ {s['bar_ewp']}, +{gain:.1f})"))
-
-    # 3) HOT / RECENT FORM -- call-ups & heaters the season-rate model still fades
     def has_team(f):
         t = str(f.get("team")).strip().lower()
         return t and "n/a" not in t and t not in ("nan", "none")
-    hot = [f for f in fa if f.get("recent_fpg") is not None
-           and not np.isnan(f["recent_fpg"]) and f["recent_fpg"] >= 6
-           and (f["recent_fpg"] - f["ffpg"]) >= 3 and has_team(f)]
-    hot = dedupe(sorted(hot, key=lambda x: -(x["recent_fpg"] - x["ffpg"])))[:a.n]
-    print("\n--- HOT / RECENT FORM (recent > season rate; call-ups & heaters the model "
-          "is still fading) ---")
-    if not hot:
-        print("   none flagged.")
-    for c in hot:
-        yng = " [young]" if _f(c.get("age")) <= YOUNG else ""
-        print(f"   {c['player']:<21} {str(c['team']):<4} {c['pos']:<9} recent "
-              f"{c['recent_fpg']:>4.1f} vs season {c['ffpg']:>4.1f}  "
-              f"({int(_f(c.get('age'), 0))}yo, dyn {int(_f(c.get('dynasty'), 0))}){yng}")
 
-    # 3b) RETURNING FROM INJURY -- available FAs on an MLB rehab assignment (grab
-    # before activation). Only GOOD ones: a value floor keeps fringe prospects on
-    # rehab out (the valuable returners are usually rostered). Valued by asset scores,
-    # not this-week EWP (they may not play yet).
+    unfilled_elig = {s["eligible"] for s in needs["unfilled"]}
+    for f in fa:
+        f["_base"], f["_boost"] = add_value(f, app)
+        f["_val"] = f["_base"] + f["_boost"]
+
+    # 1) BEST ADDS -- the headline: total value NOW + FUTURE (posture-weighted), with a
+    # capped breakout boost. A waiver add is a roster commitment judged on season +
+    # future value, NOT one week of projected starts. Tagged with what each also does.
+    cand = [f for f in fa if has_team(f) and f["_val"] > 0]
+    top = dedupe(sorted(cand, key=lambda x: -x["_val"]))[:a.n + 3]
+    print("\n--- BEST ADDS (value NOW + FUTURE, posture-weighted; a roster move, not a "
+          "1-week rental) ---")
+    for f in top:
+        tags = []
+        if any(fa_fits(f, e) for e in unfilled_elig):
+            tags.append("fills opening")
+        if f["_boost"] > 0.5:
+            tags.append(f"breakout +{f['_boost']:.0f}")
+        if ol.norm_name(f["player"]) in returning:
+            tags.append("returning")
+        if keeper_quality(f):
+            tags.append("keeper")
+        rec = (f", rec {f['recent_fpg']:.0f}" if not np.isnan(_f(f.get("recent_fpg")))
+               else "")
+        tg = ("  [" + ", ".join(tags) + "]") if tags else ""
+        print(f"   {f['player']:<21} {str(f['team']):<4} {f['pos']:<9} "
+              f"val {f['_val']:>4.0f} (now {_f(f.get('win_now'), 0):.0f}/"
+              f"fut {_f(f.get('dynasty'), 0):.0f})  {int(_f(f.get('fpts'), 0))}pt szn{rec}"
+              f"  {int(_f(f.get('age'), 0))}yo{tg}")
+
+    # breakout watch: the biggest recent-form risers NOT already in the top list -- hot
+    # young guys whose season value hasn't caught up. Could be lasting; small sample, so
+    # it's a flagged judgment call, kept separate so value stays the headline.
+    top_names = {f["player"] for f in top}
+    breakers = dedupe(sorted([f for f in cand if f["_boost"] >= 4
+                              and f["player"] not in top_names and has_team(f)],
+                             key=lambda x: -x["_boost"]))[:3]
+    if breakers:
+        print("  breakout watch (recent >> season, could be for real -- small sample, "
+              "your judgment):")
+        for f in breakers:
+            print(f"     {f['player']:<20} {str(f['team']):<4} {f['pos']:<9} recent "
+                  f"{_f(f.get('recent_fpg'), 0):.0f} vs season {_f(f.get('ffpg'), 0):.0f}"
+                  f"  ({int(_f(f.get('age'), 0))}yo, fut {_f(f.get('dynasty'), 0):.0f})")
+
+    # 2) STREAM to fill THIS WEEK's openings -- explicitly short-term (this-week points
+    # for empty slots). Secondary to value: only when you just need to plug a hole now.
+    if needs["unfilled"]:
+        print("\n--- STREAM TO FILL THIS WEEK'S OPENINGS (short-term; this-week points "
+              "only, for the empty slots) ---")
+        opens = Counter((s["slot"], s["eligible"]) for s in needs["unfilled"])
+        for (slot, elig), count in opens.items():
+            cands = dedupe(sorted([f for f in fa if fa_fits(f, elig) and f["ewp"] > 0],
+                                  key=lambda x: _sort_key(x, elig)))[:a.n]
+            note = f" (x{count})" if count > 1 else ""
+            pitch = "  [starters only]" if elig in ("SP", "RP") else ""
+            print(f"  {slot}{note}, needs {elig}{pitch}:")
+            for c in cands:
+                print(f"     {c['player']:<20} {str(c['team']):<4} {c['detail']:<20} "
+                      f"EWP {c['ewp']:>4.1f}")
+            if not cands:
+                print("     (no eligible starter with a game this week)")
+
+    # 3) RETURNING FROM INJURY -- available FAs on an MLB rehab assignment (grab before
+    # activation). Value-floored so it's real assets, not fringe rehabbing prospects.
     ret = [f for f in fa if ol.norm_name(f["player"]) in returning
            and (_f(f.get("win_now"), 0) >= RETURN_FLOOR
                 or _f(f.get("dynasty"), 0) >= RETURN_FLOOR)]
@@ -280,15 +307,7 @@ def main():
               f"win {_f(c.get('win_now'), 0):.0f}/dyn {_f(c.get('dynasty'), 0):.0f}  "
               f"({int(_f(c.get('age'), 0))}yo)")
 
-    # 4) STASH -- young dynasty upside (posture spec spots)
-    stash = dedupe(sorted([f for f in fa if _f(f.get("age")) <= YOUNG
-                           and _f(f.get("dynasty"), 0) > 0],
-                          key=lambda x: -_f(x.get("dynasty"), 0)))[:a.n]
-    print("\n--- STASH (young dynasty upside; not tied to a hole) ---")
-    for c in stash:
-        print(_line(c))
-
-    # 5) DROPS -- what an add costs, if at the cap. IL players are HOLDS, not cuts.
+    # 4) DROPS -- what an add costs, if at the cap. IL players are HOLDS, not cuts.
     if needs["roster_full"]:
         print("\n--- DROP CANDIDATES (lowest value to you; YOUR call, not auto) ---")
         il = needs["il_openings"]

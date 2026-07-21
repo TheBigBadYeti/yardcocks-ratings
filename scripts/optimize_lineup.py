@@ -127,7 +127,8 @@ def make_rec(r, games, dates, week_end, probables):
            "tok": tokens(r.get("position", "")), "role": role, "ffpg": ffpg,
            "play_rate": pr, "games": gw, "status": r.get("roster_status", ""),
            "age": r.get("age", ""), "dynasty": r.get("dynasty_score", ""),
-           "win_now": r.get("win_now_score", "")}
+           "win_now": r.get("win_now_score", ""), "fpts": r.get("fpts", ""),
+           "ros_vor": r.get("ros_vor", "")}
     if role == "H":
         rec["ewp"] = ffpg * gw * pr
         rec["detail"] = f"{gw} games"

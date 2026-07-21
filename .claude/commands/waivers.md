@@ -8,18 +8,26 @@ standalone. Default posture is our standings-derived rebuild; override with --po
 --churn defaults to "keeper": fill empty slots always, upgrade weak slots only with
 young/upside keeper-quality adds (not a 32-yo streamer for 3 points).
 
+An add is a ROSTER COMMITMENT, not a one-week rental, so the headline ranks by total
+value (season production NOW + FUTURE), posture-weighted -- NOT this-week projected
+starts. Recent hot form is a capped BALANCE on top, not the driver.
+
 Show me the sections it prints:
-- FILL THESE OPENINGS -- unfilled slots (0 pts). In this IP-heavy league, pitching
-  openings are filled by STREAMING STARTERS (SP/RP who start this week), not relievers.
-- UPGRADES -- keeper-quality FAs who beat a weak starter's slot (posture-gated).
-- HOT / RECENT FORM -- FAs whose RECENT per-game beats their season rate (call-ups &
-  heaters the win_now/dynasty model still fades). Small-sample by nature -- judgment
-  bets, not sure things.
-- STASH -- young dynasty upside, not tied to a hole.
+- BEST ADDS -- the headline: best FAs by value now + future (posture-weighted, same
+  dual valuation as trades), with a capped breakout boost. Each tagged with what it
+  also does ([fills opening], [breakout], [returning], [keeper]). A "breakout watch"
+  sub-line surfaces the hottest young risers whose season value hasn't caught up.
+- STREAM TO FILL THIS WEEK'S OPENINGS -- SECONDARY, explicitly short-term: this-week
+  points for empty slots only. Pitching openings = streaming STARTERS (SP/RP), not
+  relievers (IP-heavy format).
+- RETURNING FROM INJURY -- available FAs on an MLB rehab assignment (value-floored, so
+  real assets), grab before activation.
 - DROP CANDIDATES -- what an add costs at the 40-man cap.
 
 When presenting:
-- Lead with the OPENINGS -- those are free points and a fieldable lineup.
+- Lead with BEST ADDS -- the value plays that help now AND the future. Streaming is
+  only if you just need to plug a slot this week.
+- Breakouts are small-sample judgment calls, not sure things -- flag them as such.
 - IR the IL guys FIRST -- that frees slots without a cut. The tool flags injured
   studs as HOLD (a top asset returns to his slot; never a drop) vs low-value IL you
   could cut. Never surface a current starter, a young keeper, or a >60-value player
