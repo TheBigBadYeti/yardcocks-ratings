@@ -42,6 +42,8 @@ APPETITE = {"contend": 0.80, "retool": 0.55, "rebuild": 0.20}
 YOUNG, VET, KEEP_DYNASTY = 25, 29, 60
 KEEPER_AGE, KEEPER_DYN = 26, 55        # "keeper-quality" for a weak-slot upgrade
 UPGRADE_MARGIN = 1.15                  # an upgrade must beat the slot's bar by >=15%
+DROP_CEILING = 60                      # above this value-to-us a player is a trade
+                                       # asset, not a cut -- never a drop candidate
 LABEL_RANK = {"confirmed": 0, "projected": 1, "assumed": 2}
 
 
@@ -90,13 +92,28 @@ def dedupe(cands):
     return out
 
 
-def build_fa_pool(df_all, games, dates, week_end, probables):
+def load_recency(path="data/recency/recent_fpg.csv"):
+    """name -> recent per-game FPts, so we can catch a hot call-up the season rate
+    (and thus win_now/dynasty/EWP) still fades."""
+    if not os.path.exists(path):
+        return {}
+    d = pd.read_csv(path, encoding="utf-8")
+    return {ol.norm_name(r["name"]): _f(r.get("recent_fpg"))
+            for _, r in d.iterrows()}
+
+
+def build_fa_pool(df_all, games, dates, week_end, probables, recency):
     """Every unowned, MLB-level free agent, valued with the same EWP model as the
-    roster pool (so a stream is comparable to the guy he'd replace)."""
+    roster pool (so a stream is comparable to the guy he'd replace), tagged with
+    recent form."""
     fa = df_all[~df_all["owner_status"].astype(str).isin(OWNERS)]
     fa = fa[~fa["roster_status"].astype(str).str.lower().str.contains("minor", na=False)]
-    return [ol.make_rec(r, games, dates, week_end, probables)[0]
-            for _, r in fa.iterrows()]
+    pool = []
+    for _, r in fa.iterrows():
+        rec = ol.make_rec(r, games, dates, week_end, probables)[0]
+        rec["recent_fpg"] = recency.get(ol.norm_name(rec["player"]))
+        pool.append(rec)
+    return pool
 
 
 def _line(rec, extra=""):
@@ -137,7 +154,7 @@ def drop_candidates(df_all, team, app, n, exclude):
     if pool.empty:
         return []
     pool["_v"] = app * wn[~keep] + (1 - app) * dyn[~keep].fillna(0)
-    pool = pool.sort_values("_v")
+    pool = pool[pool["_v"] < DROP_CEILING].sort_values("_v")   # not a trade asset
     return [(r["player"], round(r["_v"], 0), int(_f(r.get("age"), 0)),
              int(_f(r.get("dynasty_score"), 0))) for _, r in pool.head(n).iterrows()]
 
@@ -163,7 +180,8 @@ def main():
     app = APPETITE[a.posture]
 
     needs, started = compute_needs(df_all, games, dates, week_end, probables, a.team)
-    fa = build_fa_pool(df_all, games, dates, week_end, probables)
+    recency = load_recency()
+    fa = build_fa_pool(df_all, games, dates, week_end, probables, recency)
 
     print(f"\n=== {a.team} WAIVER TARGETS | posture={a.posture} churn={a.churn} "
           f"| week ending {needs['week_end']} ===")
@@ -215,7 +233,25 @@ def main():
             print(_line(f, extra=f"   -> over {s['slot']} "
                                  f"({s['player']} @ {s['bar_ewp']}, +{gain:.1f})"))
 
-    # 3) STASH -- young dynasty upside (posture spec spots)
+    # 3) HOT / RECENT FORM -- call-ups & heaters the season-rate model still fades
+    def has_team(f):
+        t = str(f.get("team")).strip().lower()
+        return t and "n/a" not in t and t not in ("nan", "none")
+    hot = [f for f in fa if f.get("recent_fpg") is not None
+           and not np.isnan(f["recent_fpg"]) and f["recent_fpg"] >= 6
+           and (f["recent_fpg"] - f["ffpg"]) >= 3 and has_team(f)]
+    hot = dedupe(sorted(hot, key=lambda x: -(x["recent_fpg"] - x["ffpg"])))[:a.n]
+    print("\n--- HOT / RECENT FORM (recent > season rate; call-ups & heaters the model "
+          "is still fading) ---")
+    if not hot:
+        print("   none flagged.")
+    for c in hot:
+        yng = " [young]" if _f(c.get("age")) <= YOUNG else ""
+        print(f"   {c['player']:<21} {str(c['team']):<4} {c['pos']:<9} recent "
+              f"{c['recent_fpg']:>4.1f} vs season {c['ffpg']:>4.1f}  "
+              f"({int(_f(c.get('age'), 0))}yo, dyn {int(_f(c.get('dynasty'), 0))}){yng}")
+
+    # 4) STASH -- young dynasty upside (posture spec spots)
     stash = dedupe(sorted([f for f in fa if _f(f.get("age")) <= YOUNG
                            and _f(f.get("dynasty"), 0) > 0],
                           key=lambda x: -_f(x.get("dynasty"), 0)))[:a.n]
@@ -223,14 +259,26 @@ def main():
     for c in stash:
         print(_line(c))
 
-    # 4) DROPS -- what an add costs, if at the cap
+    # 5) DROPS -- what an add costs, if at the cap. IL players are HOLDS, not cuts.
     if needs["roster_full"]:
         print("\n--- DROP CANDIDATES (lowest value to you; YOUR call, not auto) ---")
-        if needs["il_openings"]:
-            print(f"   FIRST: IR your IL guys ({', '.join(needs['il_openings'])}) "
-                  "-- frees a slot WITHOUT a cut.")
-        exclude = started | set(needs["il_openings"])   # IR the IL guys, don't cut them
-        for name, v, age, dyn in drop_candidates(df_all, a.team, app, a.n, exclude):
+        il = needs["il_openings"]
+        if il:
+            holds = [x["player"] for x in il if x["hold"]]
+            cuttable = [x["player"] for x in il if not x["hold"]]
+            print("   FIRST: IR your IL players -- frees a slot with NO cut.")
+            if holds:
+                print(f"     HOLD (top assets, do NOT drop -- they return): "
+                      f"{', '.join(holds)}")
+            if cuttable:
+                print(f"     low-value IL (droppable if you need the spot): "
+                      f"{', '.join(cuttable)}")
+        exclude = started | {x["player"] for x in il}   # never cut an injured hold
+        drops = drop_candidates(df_all, a.team, app, a.n, exclude)
+        if not drops:
+            print("   no easy cut -- your bottom pieces still hold value (all >"
+                  f"{DROP_CEILING}). Free a spot by trade, not a drop.")
+        for name, v, age, dyn in drops:
             print(f"   {name:<21} val {v:>4.0f}  ({age}yo, dyn {dyn})")
 
     print("\n[waivers] adds are model+eligibility reads -- confirm Fantrax slot "

@@ -143,14 +143,26 @@ def make_rec(r, games, dates, week_end, probables):
     return rec, ok
 
 
+def _numv(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def build_pool(df_all, games, dates, week_end, probables, team):
     """Return (players, misses, il_excluded) for one team's startable pool.
-    il_excluded = names dropped by the health layer (MLB IL) - surfaced as openings."""
+    il_excluded = players dropped by the health layer (MLB IL), each carrying their
+    asset value + a HOLD flag so a stud (Meyer) reads as 'IR and hold', not 'replace'."""
     from health import apply_health
     df = df_all[df_all["owner_status"].astype(str).str.fullmatch(team, case=False, na=False)]
     df = df[df["roster_status"].astype(str).str.lower().isin(ELIGIBLE_STATUS)].copy()
     df = apply_health(df)
-    il_excluded = df[df["health_excluded"]]["player"].tolist()
+    il_excluded = [{"player": r["player"], "win_now": _numv(r.get("win_now_score")),
+                    "dynasty": _numv(r.get("dynasty_score")),
+                    "hold": _numv(r.get("win_now_score")) >= 60
+                            or _numv(r.get("dynasty_score")) >= 55}
+                   for _, r in df[df["health_excluded"]].iterrows()]
     df = df[~df["health_excluded"]].copy()
 
     players, misses = [], []
@@ -338,9 +350,13 @@ def main():
         for t in needs["thin_roles"]:
             print(f"   {t['role']}: {t['startable']} startable for {t['slots']} slots")
     if il_excluded:
-        print("IL OPENINGS (benched by MLB IL -- move to IR, then a body is owed):")
-        for nm in il_excluded:
-            print(f"   {nm}")
+        print("IL (your injured players -- IR them; the slot streams until they RETURN, "
+              "you don't permanently replace a hold):")
+        for x in sorted(il_excluded, key=lambda z: -z["win_now"]):
+            note = ("HOLD -- top asset, returns to this slot; do NOT drop"
+                    if x["hold"] else "low value -- droppable if you need the spot")
+            print(f"   {x['player']:<20} win {x['win_now']:.0f}/dyn {x['dynasty']:.0f}"
+                  f"  -- {note}")
     room = needs["start_cap"]["room"]
     if room:
         print(f"CAP ROOM: {room} of {START_CAP} SP starts unused -- room to stream "
