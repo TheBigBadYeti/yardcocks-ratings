@@ -17,10 +17,14 @@ your login). Everything after that happens in the repo.
 
 Run these steps IN ORDER. Do not reorder or skip.
 
-1. **Sync to origin first** (never build on a stale base):
-   `git fetch origin && git pull --ff-only`
-   If the pull fails (history diverged), STOP and report it — do not force or reset.
-   A diverged history means another writer pushed; resolve that before continuing.
+1. **Prepare — deps + sync.**
+   - Ensure Python deps (a fresh cloud VM ships without pandas/numpy; no-op on
+     desktop): try importing pandas + numpy; if it fails, `pip install -r requirements.txt`.
+     The engine won't run without them.
+   - Then sync to origin (never build on a stale base):
+     `git fetch origin && git pull --ff-only`
+     If the pull fails (history diverged), STOP and report it — do not force or reset.
+     A diverged history means another writer pushed; resolve that before continuing.
 
 2. **Ingest this week's exports — then PROVE they actually landed.**
    `data/raw/` ships pre-populated with LAST week's committed exports, and in a cloud
