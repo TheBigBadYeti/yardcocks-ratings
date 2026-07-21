@@ -8,7 +8,18 @@ publishes them to GitHub so every reader (`/sync` + all the decision commands) s
 them. Runs from any environment with git push access — desktop or cloud. There is
 exactly ONE writer at a time; never run this in two places at once.
 
-Two ways to supply this week's exports:
+WHAT TO UPLOAD -- **5 files run a full refresh** (cloud caps uploads at 5, so this fits
+in one drop):
+  1. rostered-hitters    2. rostered-pitchers    3. fa-hitters    4. fa-pitchers
+  5. Team-Roster
+Those 5 are the ONLY engine inputs. Do not wait on a 6th to start.
+
+The **Fantrax-Standings** export is a 6th, OPTIONAL file. It is NOT an engine input --
+it feeds `/posture` and trade appetite. Send it whenever convenient: in a later message,
+in next week's batch, or via the GitHub web UI. If it arrives alone, just copy it to
+`data/standings/standings.csv`, commit, and stop -- no engine re-run needed.
+
+Two ways to supply files:
 - ATTACHED to this session   -> the command swaps them into data/raw for you.
 - ALREADY in data/raw        -> uploaded through the GitHub web UI and committed.
 
@@ -37,8 +48,10 @@ Run these steps IN ORDER. Do not reorder or skip.
    - If exports were committed via the GitHub web UI: step 1's pull already brought
      them in; swap nothing.
    - If a **Fantrax-Standings** export is among the uploads, copy it to
-     `data/standings/standings.csv` (stable path, committed for reference: W/L, GB,
-     FPtsF/FPtsA + recent scoring periods). It is NOT an engine input.
+     `data/standings/standings.csv` (stable path, committed: W/L, GB, FPtsF/FPtsA +
+     recent scoring periods). It is NOT an engine input -- never block the refresh
+     waiting for it. If it did NOT arrive, proceed and report how old the committed
+     standings is, so I know how stale the posture/appetite read is.
    **HARD STOP GUARD:** run `git status --short data/raw/`. It MUST show changes
    (added/deleted/modified). If `data/raw/` shows NO changes, your new exports did NOT
    get ingested — you're about to score last week's data. Stop and fix the copy.
