@@ -3,10 +3,13 @@
 optimize_lineup.py - schedule-aware weekly lineup optimizer (Yardcocks & Beyond)
 
 Recommends the active 18-man lineup that maximizes expected points for the week,
-under the 12-start cap. Reads the ratings file + the schedule cache.
+under the 12-start cap, AND emits a structured NEEDS report that /waivers consumes.
 
 Slots: C,1B,2B,3B,SS,OF,OF,OF,UT (9 hitters), 6x SP, 3x RP.
 Eligible pool = roster_status in {Active, Reserve}; Inj Res / Minors excluded.
+
+Hitters are assigned by OPTIMAL max-weight matching over multi-position eligibility
+(a 2B/SS/OF plays wherever he adds the most total points), not a greedy first-fill.
 
 Value model (expected weekly points, EWP):
   hitter : forward_fpg * games_this_week * play_rate
@@ -15,23 +18,25 @@ Value model (expected weekly points, EWP):
 
 Start inference: confirmed probables drive the count; where a pitcher has one
 confirmed early-week start, we project a 2nd start one rotation turn (5d) later
-IF the team has a game in that window within the week. Projected starts are
-LABELED - verify the borderline ones on ESPN's 10-day forecaster before locking.
+IF the team has a game in that window within the week. Projected starts are LABELED.
+
+The NEEDS report (data/processed/lineup_needs.json) is the handoff to /waivers:
+per-slot "bar to beat" EWP, unfilled slots, thin roles, IL-driven openings, start-cap
+room, and roster fullness (for drop math). /waivers fills the holes it names.
 
 DESKTOP/cloud both fine - reads committed caches only, no network.
 """
-import argparse, csv, os, re, sys, unicodedata
+import argparse, csv, json, os, re, sys, unicodedata
 import datetime as dt
 import pandas as pd
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from health import apply_health
-
-HIT_SCARCITY = ["C", "SS", "2B", "3B", "1B", "OF", "OF", "OF", "UT"]  # fill scarce first
+# ordered hitter slots for optimal matching; UT accepts any hitter
+HIT_SLOTS = ["C", "1B", "2B", "3B", "SS", "OF", "OF", "OF", "UT"]
 SP_SLOTS, RP_SLOTS, START_CAP, TURN = 6, 3, 12, 5
 ELIGIBLE_STATUS = {"active", "reserve"}
 RP_APPEAR_RATE = 0.45   # relievers appear in ~45% of team games (rough)
+ROSTER_LIMIT = 40       # Fantrax dynasty roster cap; at/above => an add needs a drop
 
 # Fantrax -> MLB Stats API abbreviation aliases. Extend from the miss report.
 TEAM_ALIAS = {"CHW": "CWS", "OAK": "ATH", "AZ": "ARI", "WAS": "WSH", "TBR": "TB",
@@ -109,67 +114,89 @@ def infer_starts(name, sched_team, games, dates, week_end, probables):
     return (1 if games.get(sched_team, 0) > 0 else 0), "assumed"
 
 
-def build_pool(ratings, games, dates, week_end, probables, team):
-    df = pd.read_csv(ratings)
-    df = df[df["owner_status"].astype(str).str.fullmatch(team, case=False, na=False)]
+def make_rec(r, games, dates, week_end, probables):
+    """Build one player's lineup record (EWP + detail). Shared by the roster pool
+    build and the /waivers FA pool build, so both value players identically."""
+    sched_team, ok = resolve_team(r.get("team", ""), games)
+    gw = games.get(sched_team, 0)
+    ffpg = float(r.get("forward_fpg") or 0) if pd.notna(r.get("forward_fpg")) else 0.0
+    pr = float(r.get("play_rate") or 1.0) if pd.notna(r.get("play_rate")) else 1.0
+    role = str(r.get("role", "H"))
+    rec = {"player": r["player"], "team": r.get("team", ""), "sched_team": sched_team,
+           "sched_ok": ok, "pos": r.get("position", ""),
+           "tok": tokens(r.get("position", "")), "role": role, "ffpg": ffpg,
+           "play_rate": pr, "games": gw, "status": r.get("roster_status", ""),
+           "age": r.get("age", ""), "dynasty": r.get("dynasty_score", ""),
+           "win_now": r.get("win_now_score", "")}
+    if role == "H":
+        rec["ewp"] = ffpg * gw * pr
+        rec["detail"] = f"{gw} games"
+    elif role in ("SP", "SP/RP"):
+        st, lab = infer_starts(r["player"], sched_team, games, dates, week_end, probables)
+        rec["starts"], rec["start_label"] = st, lab
+        rec["ewp"] = ffpg * st
+        rec["detail"] = f"{st} start{'s' if st != 1 else ''} ({lab})"
+    else:  # RP
+        ap = round(gw * RP_APPEAR_RATE)
+        rec["ewp"] = ffpg * ap
+        rec["detail"] = f"~{ap} apps"
+    return rec, ok
+
+
+def build_pool(df_all, games, dates, week_end, probables, team):
+    """Return (players, misses, il_excluded) for one team's startable pool.
+    il_excluded = names dropped by the health layer (MLB IL) - surfaced as openings."""
+    from health import apply_health
+    df = df_all[df_all["owner_status"].astype(str).str.fullmatch(team, case=False, na=False)]
     df = df[df["roster_status"].astype(str).str.lower().isin(ELIGIBLE_STATUS)].copy()
-    df = apply_health(df)                      # marks health_excluded; reports IL conflicts
-    df = df[~df["health_excluded"]].copy()     # drop genuinely injured from startable pool
+    df = apply_health(df)
+    il_excluded = df[df["health_excluded"]]["player"].tolist()
+    df = df[~df["health_excluded"]].copy()
 
     players, misses = [], []
     for _, r in df.iterrows():
-        sched_team, ok = resolve_team(r.get("team", ""), games)
+        rec, ok = make_rec(r, games, dates, week_end, probables)
         if not ok:
             misses.append((r["player"], r.get("team", "")))
-        gw = games.get(sched_team, 0)
-        ffpg = float(r.get("forward_fpg") or 0) if pd.notna(r.get("forward_fpg")) else 0.0
-        pr = float(r.get("play_rate") or 1.0) if pd.notna(r.get("play_rate")) else 1.0
-        role = str(r.get("role", "H"))
-        rec = {"player": r["player"], "team": r.get("team", ""), "sched_team": sched_team,
-               "pos": r.get("position", ""), "tok": tokens(r.get("position", "")),
-               "role": role, "ffpg": ffpg, "play_rate": pr, "games": gw,
-               "status": r.get("roster_status", "")}
-        if role == "H":
-            rec["ewp"] = ffpg * gw * pr
-            rec["detail"] = f"{gw} games"
-        elif role in ("SP", "SP/RP"):
-            st, lab = infer_starts(r["player"], sched_team, games, dates, week_end, probables)
-            rec["starts"], rec["start_label"] = st, lab
-            rec["ewp"] = ffpg * st
-            rec["detail"] = f"{st} start{'s' if st != 1 else ''} ({lab})"
-        else:  # RP
-            ap = round(gw * RP_APPEAR_RATE)
-            rec["ewp"] = ffpg * ap
-            rec["detail"] = f"~{ap} apps"
         players.append(rec)
-    return players, misses
+    return players, misses, il_excluded
 
 
-def assign_hitters(hitters):
-    used, lineup = set(), []
-    for slot in HIT_SCARCITY:
-        best = None
-        for h in hitters:
-            if h["player"] in used:
+# ------------------------------------------------------------------ assignment
+def optimal_hitters(hitters, slots=HIT_SLOTS):
+    """Max-weight assignment of hitters to slots respecting multi-position
+    eligibility. Exact (DP over ordered slots + used-player bitmask), capped to a
+    realistic candidate set so it stays instant. Returns list of (slot, rec|None)."""
+    order = sorted(range(len(hitters)), key=lambda i: -hitters[i]["ewp"])
+    cand = order[:min(len(order), len(slots) + 5)]   # only plausible starters
+    bit = {p: b for b, p in enumerate(cand)}
+
+    def eligible(pi, slot):
+        return slot == "UT" or slot in hitters[pi]["tok"]
+
+    memo = {}
+
+    def solve(si, used):
+        if si == len(slots):
+            return 0.0, []
+        key = (si, used)
+        if key in memo:
+            return memo[key]
+        best_v, best_a = solve(si + 1, used)          # leave this slot empty
+        best_a = [(slots[si], None)] + best_a
+        for pi in cand:
+            b = 1 << bit[pi]
+            if (used & b) or not eligible(pi, slots[si]):
                 continue
-            if slot == "UT" or slot in h["tok"]:
-                if best is None or h["ewp"] > best["ewp"]:
-                    best = h
-        if best:
-            used.add(best["player"])
-            lineup.append((slot, best))
-    # one improvement pass: swap a benched hitter in if it raises total for its slot
-    improved = True
-    while improved:
-        improved = False
-        for i, (slot, cur) in enumerate(lineup):
-            for h in hitters:
-                if h["player"] in used:
-                    continue
-                if (slot == "UT" or slot in h["tok"]) and h["ewp"] > cur["ewp"]:
-                    used.discard(cur["player"]); used.add(h["player"])
-                    lineup[i] = (slot, h); cur = h; improved = True
-    return lineup, used
+            v, a = solve(si + 1, used | b)
+            v += hitters[pi]["ewp"]
+            if v > best_v:
+                best_v, best_a = v, [(slots[si], pi)] + a
+        memo[key] = (best_v, best_a)
+        return memo[key]
+
+    _, assign = solve(0, 0)
+    return [(slot, hitters[pi] if pi is not None else None) for slot, pi in assign]
 
 
 def assign_pitchers(players):
@@ -190,6 +217,56 @@ def assign_pitchers(players):
     return sp_lineup, rp_lineup, starts_used
 
 
+# --------------------------------------------------------------------- needs
+def _startable(players, roles):
+    return sum(1 for p in players if p["role"] in roles)
+
+
+def diagnose_needs(hit_lineup, sp_lineup, rp_lineup, players, week_end,
+                   il_excluded, roster_count):
+    """Structured needs report -> the /waivers handoff. Each slot carries the
+    'bar to beat' (current starter EWP; 0 if empty) and the eligibility an FA needs."""
+    slots = []
+    for slot, rec in hit_lineup:
+        elig = "H" if slot == "UT" else slot        # UT = any hitter
+        slots.append({"slot": slot, "role": "H", "eligible": elig,
+                      "filled": rec is not None,
+                      "player": rec["player"] if rec else None,
+                      "bar_ewp": round(rec["ewp"], 1) if rec else 0.0})
+    for i in range(SP_SLOTS):
+        rec = sp_lineup[i][1] if i < len(sp_lineup) else None
+        slots.append({"slot": "SP", "role": "SP", "eligible": "SP",
+                      "filled": rec is not None,
+                      "player": rec["player"] if rec else None,
+                      "bar_ewp": round(rec["ewp"], 1) if rec else 0.0})
+    for i in range(RP_SLOTS):
+        rec = rp_lineup[i][1] if i < len(rp_lineup) else None
+        slots.append({"slot": "RP", "role": "RP", "eligible": "RP",
+                      "filled": rec is not None,
+                      "player": rec["player"] if rec else None,
+                      "bar_ewp": round(rec["ewp"], 1) if rec else 0.0})
+
+    thin = []
+    for role_name, roles, n in (("H", {"H"}, 9), ("SP", {"SP", "SP/RP"}, SP_SLOTS),
+                                ("RP", {"RP", "SP/RP"}, RP_SLOTS)):
+        have = _startable(players, roles)
+        if have <= n:
+            thin.append({"role": role_name, "startable": have, "slots": n})
+
+    starts_used = sum(p.get("starts", 0) for _, p in sp_lineup)
+    return {
+        "team": None, "week_end": str(week_end),
+        "slots": slots,
+        "unfilled": [s for s in slots if not s["filled"]],
+        "thin_roles": thin,
+        "il_openings": il_excluded,
+        "start_cap": {"used": starts_used, "cap": START_CAP,
+                      "room": max(0, START_CAP - starts_used)},
+        "roster_count": roster_count, "roster_limit": ROSTER_LIMIT,
+        "roster_full": roster_count >= ROSTER_LIMIT,
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ratings", required=True)
@@ -199,37 +276,85 @@ def main():
     ap.add_argument("--outdir", default="data/processed")
     a = ap.parse_args()
 
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     games, dates, week_end = load_schedule(a.schedule)
     probables = load_probables(a.probables)
-    players, misses = build_pool(a.ratings, games, dates, week_end, probables, a.team)
+    df_all = pd.read_csv(a.ratings)
+    roster_count = int((df_all["owner_status"].astype(str)
+                        .str.fullmatch(a.team, case=False, na=False)).sum())
+    players, misses, il_excluded = build_pool(df_all, games, dates, week_end,
+                                              probables, a.team)
 
     hitters = [p for p in players if p["role"] == "H"]
-    hit_lineup, hit_used = assign_hitters(hitters)
+    hit_lineup = optimal_hitters(hitters)
     sp_lineup, rp_lineup, _ = assign_pitchers(players)
     starts_used = sum(p.get("starts", 0) for _, p in (sp_lineup + rp_lineup))
 
-    full = hit_lineup + sp_lineup + rp_lineup
+    full = [(s, r) for s, r in hit_lineup if r] + sp_lineup + rp_lineup
     started = {p["player"] for _, p in full}
     total = sum(p["ewp"] for _, p in full)
 
     print(f"\n=== {a.team} - schedule-aware lineup, week ending {week_end} ===")
     print(f"{'SLOT':<5} {'PLAYER':<22} {'TEAM':<5} {'THIS WEEK':<22} {'EWP':>7}")
     print("-" * 64)
-    for slot, p in full:
-        print(f"{slot:<5} {p['player']:<22} {str(p['team']):<5} {p['detail']:<22} {p['ewp']:>7.1f}")
+    for slot, rec in hit_lineup:
+        if rec:
+            print(f"{slot:<5} {rec['player']:<22} {str(rec['team']):<5} "
+                  f"{rec['detail']:<22} {rec['ewp']:>7.1f}")
+        else:
+            print(f"{slot:<5} {'-- UNFILLED --':<22} {'':<5} {'no eligible hitter':<22} "
+                  f"{0.0:>7.1f}")
+    for slot, p in sp_lineup:
+        print(f"{slot:<5} {p['player']:<22} {str(p['team']):<5} {p['detail']:<22} "
+              f"{p['ewp']:>7.1f}")
+    for _ in range(len(sp_lineup), SP_SLOTS):
+        print(f"{'SP':<5} {'-- UNFILLED --':<22} {'':<5} {'no eligible starter':<22} "
+              f"{0.0:>7.1f}")
+    for slot, p in rp_lineup:
+        print(f"{slot:<5} {p['player']:<22} {str(p['team']):<5} {p['detail']:<22} "
+              f"{p['ewp']:>7.1f}")
+    for _ in range(len(rp_lineup), RP_SLOTS):
+        print(f"{'RP':<5} {'-- UNFILLED --':<22} {'':<5} {'no eligible reliever':<22} "
+              f"{0.0:>7.1f}")
     print("-" * 64)
     print(f"{'TOTAL expected weekly points':<55}{total:>9.1f}")
     print(f"projected SP starts: {starts_used} / {START_CAP} cap", end="")
-    if starts_used < START_CAP:
-        print(f"   ({START_CAP - starts_used} under - room to stream a 2-start arm)")
+    print(f"   ({START_CAP - starts_used} under)" if starts_used < START_CAP else "")
+
+    needs = diagnose_needs(hit_lineup, sp_lineup, rp_lineup, players, week_end,
+                           il_excluded, roster_count)
+    needs["team"] = a.team
+
+    print("\n=== LINEUP NEEDS (what /waivers should fill) ===")
+    unfilled = needs["unfilled"]
+    if unfilled:
+        print("OPENINGS (unfilled = 0 pts, must fill regardless of posture):")
+        for s in unfilled:
+            print(f"   {s['slot']:<4} needs a {s['eligible']} -- currently 0 EWP")
     else:
-        print()
+        print("No unfilled slots -- lineup is fully fielded.")
+    if needs["thin_roles"]:
+        print("THIN (one injury from an unfillable slot):")
+        for t in needs["thin_roles"]:
+            print(f"   {t['role']}: {t['startable']} startable for {t['slots']} slots")
+    if il_excluded:
+        print("IL OPENINGS (benched by MLB IL -- move to IR, then a body is owed):")
+        for nm in il_excluded:
+            print(f"   {nm}")
+    room = needs["start_cap"]["room"]
+    if room:
+        print(f"CAP ROOM: {room} of {START_CAP} SP starts unused -- room to stream "
+              f"{room} more start(s).")
+    print(f"ROSTER: {roster_count}/{ROSTER_LIMIT}"
+          + (" (FULL -- every add needs a drop)" if needs["roster_full"]
+             else f" ({ROSTER_LIMIT - roster_count} open spot(s))"))
 
     bench = [p for p in players if p["player"] not in started]
     if bench:
         print("\nBENCH (eligible, not started):")
         for p in sorted(bench, key=lambda x: -x["ewp"]):
-            print(f"   {p['player']:<22} {str(p['team']):<5} {p['detail']:<22} {p['ewp']:>7.1f}")
+            print(f"   {p['player']:<22} {str(p['team']):<5} {p['detail']:<22} "
+                  f"{p['ewp']:>7.1f}")
 
     proj = [p for _, p in sp_lineup if p.get("start_label") == "projected"]
     if proj:
@@ -248,7 +373,11 @@ def main():
         w.writerow(["slot", "player", "team", "this_week", "ewp"])
         for slot, p in full:
             w.writerow([slot, p["player"], p["team"], p["detail"], round(p["ewp"], 1)])
+    needs_path = os.path.join(a.outdir, "lineup_needs.json")
+    with open(needs_path, "w", encoding="utf-8") as fh:
+        json.dump(needs, fh, indent=2)
     print(f"\n[ok] wrote {outpath}")
+    print(f"[ok] wrote {needs_path}  (the /waivers handoff)")
 
 
 if __name__ == "__main__":
