@@ -20,27 +20,30 @@ import os
 PATH = "data/standings/standings.csv"
 
 # franchise name (standings export) -> owner handle (ratings 'owner_status').
-# CONFIRMED by the owner.
+# All 14 CONFIRMED by the owner (Hutch = Tommy Hustle by elimination once the other 13
+# were named). Note: a roster-based guess had kyfaess = Tommy Hustle (he rosters Tommy
+# Edman) and it was WRONG -- kyfaess is Former Players II. Name puns are not evidence;
+# confirm new franchises rather than inferring them.
 TEAM_MAP = {
     "zyoung510": "zyoung51",
     "Merkle x Owen": "JMerkle",
+    "Former Players II": "kyfaess",
     "Clankas": "CLANK",
+    "Tommy Hustle": "Hutch",
     "Kenny's Retirement Home": "KRetiree",
+    "Backyard Buntsmokers": "GoldTY",
     "joeybats5": "joeybats",
+    "Tucker? I hardly know her": "Coop",
     "Seth x Simon": "Sethmc44",
+    "Dirtbags": "Sasso",
+    "Sandlot Sluggers": "Jpanner",
     "Greenbeto_20": "Greenbet",
     "The Hot Tub Whalers": "Kipp",
-    "Backyard Buntsmokers": "GoldTY",
 }
 
-# INFERRED from rosters, not yet owner-confirmed. Used, but flagged in output so a bad
-# guess surfaces instead of silently mispricing a trade.
-PROVISIONAL = {
-    "Tucker? I hardly know her": "Coop",      # Coop rosters Kyle Tucker
-    "Tommy Hustle": "kyfaess",                # kyfaess rosters Tommy Edman
-}
-
-# Still unknown: Hutch, Sasso, Jpanner <-> Former Players II, Dirtbags, Sandlot Sluggers
+# No unconfirmed mappings remain. If the league renames a franchise, add it here --
+# an unmapped team silently falls back to roster inference (and is reported).
+PROVISIONAL = {}
 
 
 def load(path=PATH):
