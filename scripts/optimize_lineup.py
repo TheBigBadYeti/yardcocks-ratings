@@ -280,6 +280,50 @@ def diagnose_needs(hit_lineup, sp_lineup, rp_lineup, players, week_end,
     }
 
 
+def roster_view(df_all, team, players, started, il_lag):
+    """Print the WHOLE 40-man roster grouped by slot type, with each player's Fantrax
+    position eligibility. Covers the parts the lineup optimizer drops: reserves, the
+    IL-lag guys to move to IR, Fantrax Inj Res, and the minor-league farm."""
+    kipp = df_all[df_all["owner_status"].astype(str)
+                  .str.fullmatch(team, case=False, na=False)].copy()
+    rs = kipp["roster_status"].astype(str).str.lower()
+    n_act = int((rs == "active").sum())
+    n_res = int((rs == "reserve").sum())
+    inj = kipp[rs.str.contains("inj", na=False)]
+    minors = kipp[rs.str.contains("minor", na=False)]
+
+    print(f"\n=== FULL ROSTER ({len(kipp)})  -  Active {n_act} · Reserve {n_res} · "
+          f"Inj Res {len(inj)} · Minors {len(minors)}   (ELIG = Fantrax-eligible slots) ===")
+
+    bench = sorted([p for p in players if p["player"] not in started],
+                   key=lambda x: -x["ewp"])
+    if bench:
+        print("RESERVE / BENCH (startable, not in the optimal 18):")
+        for p in bench:
+            print(f"   {p['player']:<22} {str(p['pos']):<9} {p['detail']:<18} "
+                  f"EWP {p['ewp']:>5.1f}")
+
+    if il_lag:
+        print("MLB IL but active on Fantrax -> MOVE TO IR (frees a startable slot):")
+        for x in sorted(il_lag, key=lambda z: -z["win_now"]):
+            tag = "HOLD" if x["hold"] else "low value"
+            print(f"   {x['player']:<22} win {x['win_now']:.0f}/dyn {x['dynasty']:.0f}"
+                  f"  ({tag})")
+
+    def _line(r):
+        return (f"   {r['player']:<22} {str(r.get('position', '')):<9} "
+                f"dyn {_numv(r.get('dynasty_score')):>4.0f}  win {_numv(r.get('win_now_score')):>4.0f}"
+                f"  {int(_numv(r.get('age')))}yo")
+    if len(inj):
+        print("INJURED RESERVE (Fantrax Inj Res -- IL slot, not startable):")
+        for _, r in inj.sort_values("dynasty_score", ascending=False).iterrows():
+            print(_line(r))
+    if len(minors):
+        print(f"MINORS / FARM ({len(minors)}):")
+        for _, r in minors.sort_values("dynasty_score", ascending=False).iterrows():
+            print(_line(r))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ratings", required=True)
@@ -308,28 +352,25 @@ def main():
     total = sum(p["ewp"] for _, p in full)
 
     print(f"\n=== {a.team} - schedule-aware lineup, week ending {week_end} ===")
-    print(f"{'SLOT':<5} {'PLAYER':<22} {'TEAM':<5} {'THIS WEEK':<22} {'EWP':>7}")
-    print("-" * 64)
-    for slot, rec in hit_lineup:
+    print(f"{'SLOT':<5} {'PLAYER':<22} {'TEAM':<4} {'ELIG':<9} {'THIS WEEK':<20} {'EWP':>6}")
+    print("-" * 68)
+    def _row(slot, rec, empty):
         if rec:
-            print(f"{slot:<5} {rec['player']:<22} {str(rec['team']):<5} "
-                  f"{rec['detail']:<22} {rec['ewp']:>7.1f}")
+            print(f"{slot:<5} {rec['player']:<22} {str(rec['team']):<4} "
+                  f"{str(rec['pos']):<9} {rec['detail']:<20} {rec['ewp']:>6.1f}")
         else:
-            print(f"{slot:<5} {'-- UNFILLED --':<22} {'':<5} {'no eligible hitter':<22} "
-                  f"{0.0:>7.1f}")
+            print(f"{slot:<5} {'-- UNFILLED --':<22} {'':<4} {'':<9} {empty:<20} {0.0:>6.1f}")
+    for slot, rec in hit_lineup:
+        _row(slot, rec, "no eligible hitter")
     for slot, p in sp_lineup:
-        print(f"{slot:<5} {p['player']:<22} {str(p['team']):<5} {p['detail']:<22} "
-              f"{p['ewp']:>7.1f}")
+        _row(slot, p, "")
     for _ in range(len(sp_lineup), SP_SLOTS):
-        print(f"{'SP':<5} {'-- UNFILLED --':<22} {'':<5} {'no eligible starter':<22} "
-              f"{0.0:>7.1f}")
+        _row("SP", None, "no eligible starter")
     for slot, p in rp_lineup:
-        print(f"{slot:<5} {p['player']:<22} {str(p['team']):<5} {p['detail']:<22} "
-              f"{p['ewp']:>7.1f}")
+        _row(slot, p, "")
     for _ in range(len(rp_lineup), RP_SLOTS):
-        print(f"{'RP':<5} {'-- UNFILLED --':<22} {'':<5} {'no eligible reliever':<22} "
-              f"{0.0:>7.1f}")
-    print("-" * 64)
+        _row("RP", None, "no eligible reliever")
+    print("-" * 68)
     print(f"{'TOTAL expected weekly points':<55}{total:>9.1f}")
     print(f"projected SP starts: {starts_used} / {START_CAP} cap", end="")
     print(f"   ({START_CAP - starts_used} under)" if starts_used < START_CAP else "")
@@ -366,12 +407,7 @@ def main():
           + (" (FULL -- every add needs a drop)" if needs["roster_full"]
              else f" ({ROSTER_LIMIT - roster_count} open spot(s))"))
 
-    bench = [p for p in players if p["player"] not in started]
-    if bench:
-        print("\nBENCH (eligible, not started):")
-        for p in sorted(bench, key=lambda x: -x["ewp"]):
-            print(f"   {p['player']:<22} {str(p['team']):<5} {p['detail']:<22} "
-                  f"{p['ewp']:>7.1f}")
+    roster_view(df_all, a.team, players, started, il_excluded)
 
     proj = [p for _, p in sp_lineup if p.get("start_label") == "projected"]
     if proj:
