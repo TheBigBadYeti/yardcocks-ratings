@@ -1,0 +1,73 @@
+# Scheduled MLB cache refresh.
+#
+# WHY: recency / schedule / injuries come from the MLB Stats API, which the Claude cloud
+# VM cannot reach (its default egress allowlist covers package registries + GitHub, not
+# general internet). That made the weekly refresh depend on a desktop. GitHub's runners
+# have open internet and a completely different network path, so they can fetch the
+# caches and commit them -- after which cloud/phone sessions read exactly what a desktop
+# would. The Fantrax exports still need a human (they're behind a login); this only
+# covers the MLB-derived caches.
+name: refresh MLB caches
+
+on:
+  schedule:
+    - cron: "0 12 * * *"      # 12:00 UTC daily (~8am ET), before most first pitches
+  workflow_dispatch:           # manual "Run workflow" button
+
+permissions:
+  contents: write              # needed to push the refreshed caches to main
+
+concurrency:
+  group: refresh-caches        # never let two runs race on the same files
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      # Fail LOUDLY and early if MLB refuses this runner, rather than silently
+      # committing stale caches and letting /lineups quietly use old data.
+      - name: Probe MLB Stats API reachability
+        run: |
+          python - <<'PY'
+          import sys, urllib.request
+          url = "https://statsapi.mlb.com/api/v1/teams?sportId=1"
+          try:
+              with urllib.request.urlopen(url, timeout=20) as r:
+                  print(f"MLB Stats API reachable from this runner (HTTP {r.status})")
+          except Exception as e:
+              print(f"MLB Stats API NOT reachable: {type(e).__name__}: {e}")
+              body = getattr(e, "read", lambda: b"")()
+              if body:
+                  print("response body (first 400 chars):", body[:400])
+              sys.exit(1)
+          PY
+
+      - name: Fetch caches
+        run: |
+          python scripts/fetch_recency.py
+          python scripts/fetch_schedule.py
+          python scripts/fetch_injuries.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "yardcocks-cache-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/recency/ data/schedule/ \
+                  data/injuries/il_status.csv data/injuries/returning.csv
+          if git diff --cached --quiet; then
+            echo "No cache changes -- nothing to commit."
+          else
+            git commit -m "caches: scheduled MLB refresh $(date -u +%Y-%m-%d)"
+            git push origin HEAD:main
+            echo "Pushed refreshed caches to main."
+          fi
