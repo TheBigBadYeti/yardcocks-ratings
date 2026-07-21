@@ -36,6 +36,9 @@ Run these steps IN ORDER. Do not reorder or skip.
      reads headers, not names).
    - If exports were committed via the GitHub web UI: step 1's pull already brought
      them in; swap nothing.
+   - If a **Fantrax-Standings** export is among the uploads, copy it to
+     `data/standings/standings.csv` (stable path, committed for reference: W/L, GB,
+     FPtsF/FPtsA + recent scoring periods). It is NOT an engine input.
    **HARD STOP GUARD:** run `git status --short data/raw/`. It MUST show changes
    (added/deleted/modified). If `data/raw/` shows NO changes, your new exports did NOT
    get ingested — you're about to score last week's data. Stop and fix the copy.
@@ -68,7 +71,7 @@ Run these steps IN ORDER. Do not reorder or skip.
    ```
    python3 scripts/snapshot.py --label weekly      # writes data/snapshots/ + manifest
    git add data/raw/ data/processed/current_player_ratings.csv data/snapshots/ \
-           data/recency/ data/schedule/ \
+           data/recency/ data/schedule/ data/standings/ \
            data/injuries/il_status.csv data/injuries/returning.csv
    git commit -m "data refresh YYYY-MM-DD"          # today's real date
    git push origin main
