@@ -95,7 +95,13 @@ Run these steps IN ORDER. Do not reorder or skip.
    Snapshot       : data/snapshots/ratings_YYYY-MM-DD.csv
    Published      : <HEAD hash> on <branch>  (pushed to main / branch / NOT pushed)
    ----------------------------------------------
+   NEXT: /posture -> /lineups -> /waivers -> /trades -> /lineups (re-lock)
    ```
+   Then say one line on what to run next and why, e.g. "start with /posture — it sets
+   the lens /waivers and /trades price off." If the push FAILED, lead with that
+   instead: no reader sees this refresh until it lands on main.
+   If the MLB fetches 403'd (cloud VM), note that schedule/injury caches are stale, so
+   /lineups will be less schedule-aware until a laptop refresh.
 
 This is the single writer command — it replaces the old /load and /publish (both
 folded in). `/sync` is the read-only counterpart for reader sessions.
