@@ -13,7 +13,8 @@ you push back, say why and propose the better move.
 
 ## What this is
 A dynasty fantasy-baseball decision system for the managed team **`Kipp`** (owner
-Ryan Kipp, team 12) in a 14-owner Fantrax H2H-points league. It ingests Fantrax
+Ryan Kipp, team 12; franchise name **"The Hot Tub Whalers"** in the Fantrax standings
+export) in a 14-owner Fantrax H2H-points league. It ingests Fantrax
 CSV exports and produces `win_now_score` and `dynasty_score` (0–100) per player.
 Clean-room rebuild of an older tool ("Codex") on a DLP-locked work machine.
 
