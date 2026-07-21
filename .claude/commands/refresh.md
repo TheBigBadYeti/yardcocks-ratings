@@ -68,7 +68,8 @@ Run these steps IN ORDER. Do not reorder or skip.
    ```
    python3 scripts/snapshot.py --label weekly      # writes data/snapshots/ + manifest
    git add data/raw/ data/processed/current_player_ratings.csv data/snapshots/ \
-           data/recency/ data/schedule/ data/injuries/il_status.csv
+           data/recency/ data/schedule/ \
+           data/injuries/il_status.csv data/injuries/returning.csv
    git commit -m "data refresh YYYY-MM-DD"          # today's real date
    git push origin main
    ```

@@ -44,6 +44,8 @@ KEEPER_AGE, KEEPER_DYN = 26, 55        # "keeper-quality" for a weak-slot upgrad
 UPGRADE_MARGIN = 1.15                  # an upgrade must beat the slot's bar by >=15%
 DROP_CEILING = 60                      # above this value-to-us a player is a trade
                                        # asset, not a cut -- never a drop candidate
+RETURN_FLOOR = 50                      # a returning FA must clear this (win_now or
+                                       # dynasty) to be worth grabbing off waivers
 LABEL_RANK = {"confirmed": 0, "projected": 1, "assumed": 2}
 
 
@@ -100,6 +102,15 @@ def load_recency(path="data/recency/recent_fpg.csv"):
     d = pd.read_csv(path, encoding="utf-8")
     return {ol.norm_name(r["name"]): _f(r.get("recent_fpg"))
             for _, r in d.iterrows()}
+
+
+def load_returning(path="data/injuries/returning.csv"):
+    """norm_names of players on an MLB rehab assignment (about to be activated) -- a
+    good player to grab off waivers BEFORE he returns and gets scooped."""
+    if not os.path.exists(path):
+        return set()
+    d = pd.read_csv(path, encoding="utf-8")
+    return {ol.norm_name(n) for n in d["name"].astype(str)}
 
 
 def build_fa_pool(df_all, games, dates, week_end, probables, recency):
@@ -181,6 +192,7 @@ def main():
 
     needs, started = compute_needs(df_all, games, dates, week_end, probables, a.team)
     recency = load_recency()
+    returning = load_returning()
     fa = build_fa_pool(df_all, games, dates, week_end, probables, recency)
 
     print(f"\n=== {a.team} WAIVER TARGETS | posture={a.posture} churn={a.churn} "
@@ -251,6 +263,23 @@ def main():
               f"{c['recent_fpg']:>4.1f} vs season {c['ffpg']:>4.1f}  "
               f"({int(_f(c.get('age'), 0))}yo, dyn {int(_f(c.get('dynasty'), 0))}){yng}")
 
+    # 3b) RETURNING FROM INJURY -- available FAs on an MLB rehab assignment (grab
+    # before activation). Only GOOD ones: a value floor keeps fringe prospects on
+    # rehab out (the valuable returners are usually rostered). Valued by asset scores,
+    # not this-week EWP (they may not play yet).
+    ret = [f for f in fa if ol.norm_name(f["player"]) in returning
+           and (_f(f.get("win_now"), 0) >= RETURN_FLOOR
+                or _f(f.get("dynasty"), 0) >= RETURN_FLOOR)]
+    ret = dedupe(sorted(ret, key=lambda x: -_f(x.get("win_now"), 0)))[:a.n]
+    print("\n--- RETURNING FROM INJURY (on MLB rehab -- grab before he's activated) ---")
+    if not ret:
+        print("   none worth grabbing among available FAs "
+              "(good returners are already rostered).")
+    for c in ret:
+        print(f"   {c['player']:<21} {str(c['team']):<4} {c['pos']:<9} "
+              f"win {_f(c.get('win_now'), 0):.0f}/dyn {_f(c.get('dynasty'), 0):.0f}  "
+              f"({int(_f(c.get('age'), 0))}yo)")
+
     # 4) STASH -- young dynasty upside (posture spec spots)
     stash = dedupe(sorted([f for f in fa if _f(f.get("age")) <= YOUNG
                            and _f(f.get("dynasty"), 0) > 0],
@@ -264,7 +293,9 @@ def main():
         print("\n--- DROP CANDIDATES (lowest value to you; YOUR call, not auto) ---")
         il = needs["il_openings"]
         if il:
-            holds = [x["player"] for x in il if x["hold"]]
+            holds = [x["player"] + (" (on rehab -- back soon)"
+                                    if ol.norm_name(x["player"]) in returning else "")
+                     for x in il if x["hold"]]
             cuttable = [x["player"] for x in il if not x["hold"]]
             print("   FIRST: IR your IL players -- frees a slot with NO cut.")
             if holds:

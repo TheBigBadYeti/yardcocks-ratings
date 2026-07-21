@@ -18,10 +18,12 @@ data/processed/*.csv
 # Claude Code — machine-local settings stay off the repo
 .claude/settings.local.json
 
-# Injuries — IL snapshot committed so cloud/phone readers get it. The writer needs
-# MLB API access (cloud VMs are blocked), so it can't be refetched by a reader.
+# Injuries — IL + returning (rehab) snapshots committed so cloud/phone readers get
+# them. The writer needs MLB API access (cloud VMs are blocked), so a reader can't
+# refetch; /lineups and /waivers read what an MLB-capable writer committed.
 data/injuries/*
 !data/injuries/il_status.csv
+!data/injuries/returning.csv
 
 # Python
 .venv/

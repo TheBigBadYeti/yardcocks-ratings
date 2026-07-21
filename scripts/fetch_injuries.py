@@ -30,6 +30,7 @@ import urllib.request
 
 API = "https://statsapi.mlb.com/api/v1"
 OUT = "data/injuries/il_status.csv"
+OUT_RET = "data/injuries/returning.csv"      # rehab-assignment = about to be activated
 TIMEOUT = 15
 
 
@@ -51,38 +52,43 @@ def team_ids():
     return [(t["id"], t.get("abbreviation", "")) for t in data.get("teams", [])]
 
 
-# MLB Stats API status codes for genuine IL placements. RA (rehab assignment)
-# deliberately excluded — those players are about to return, not genuinely unavailable.
+# MLB Stats API status codes for genuine IL placements (benched by the health layer).
 IL_CODES = {"D7", "D10", "D15", "D60", "ILF"}
+# RA (rehab assignment) = about to be activated. NOT benched -- captured separately as
+# a RETURNING signal so /waivers can flag a good player to grab before he's back.
+RETURNING_CODES = {"RA"}
 
 
-def il_from_roster(team_id, today):
-    """Return IL rows for one team. Keyed on status.code, not description text.
-    Codes confirmed from live API: D7/D10/D15/D60 = day ILs, ILF = full season."""
+def notable_from_roster(team_id, today):
+    """Return (il_rows, returning_rows) for one team, keyed on status.code.
+    Codes confirmed from live API: D7/D10/D15/D60 day ILs, ILF full season, RA rehab."""
     url = f"{API}/teams/{team_id}/roster?rosterType=fullRoster&date={today}"
-    rows = []
+    il_rows, ret_rows = [], []
     for e in _get(url).get("roster", []):
         s = e.get("status", {}) or {}
         code = (s.get("code", "") or "").strip().upper()
         desc = (s.get("description", "") or "").strip()
-        if code not in IL_CODES:
+        if code not in IL_CODES and code not in RETURNING_CODES:
             continue
         person = e.get("person", {})
         if code == "ILF":
             il_type = "full-season"
+        elif code == "RA":
+            il_type = "rehab"
         elif code.startswith("D") and code[1:].isdigit():
             il_type = f"{code[1:]}-day"
         else:
             il_type = code.lower()
-        rows.append({
+        row = {
             "mlbam_id": person.get("id", ""),
             "name": person.get("fullName", ""),
             "norm_name": norm_name(person.get("fullName", "")),
             "il_type": il_type,
             "status_code": code,
             "status_desc": desc,
-        })
-    return rows
+        }
+        (ret_rows if code in RETURNING_CODES else il_rows).append(row)
+    return il_rows, ret_rows
 
 
 def main():
@@ -92,12 +98,14 @@ def main():
     except Exception as e:
         sys.exit(f"[injuries] could not list teams ({e}); aborting, leaving prior file")
 
-    all_rows, failed = [], []
+    all_rows, ret_rows, failed = [], [], []
     for tid, abbr in teams:
         try:
-            for r in il_from_roster(tid, today):
-                r["mlb_team"] = abbr
-                all_rows.append(r)
+            il, ret = notable_from_roster(tid, today)
+            for r in il:
+                r["mlb_team"] = abbr; all_rows.append(r)
+            for r in ret:
+                r["mlb_team"] = abbr; ret_rows.append(r)
         except Exception as e:
             failed.append(abbr or str(tid))   # fail soft: skip team, keep going
 
@@ -110,12 +118,14 @@ def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     cols = ["mlbam_id", "name", "norm_name", "mlb_team", "il_type",
             "status_code", "status_desc"]
-    with open(OUT, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=cols)
-        w.writeheader()
-        for r in sorted(all_rows, key=lambda x: x["name"]):
-            w.writerow(r)
-    print(f"[injuries] wrote {len(all_rows)} IL designations to {OUT} "
+    for path, rows in ((OUT, all_rows), (OUT_RET, ret_rows)):
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=cols)
+            w.writeheader()
+            for r in sorted(rows, key=lambda x: x["name"]):
+                w.writerow(r)
+    print(f"[injuries] wrote {len(all_rows)} IL designations to {OUT} and "
+          f"{len(ret_rows)} rehab/returning to {OUT_RET} "
           f"({len(teams) - len(failed)}/{len(teams)} teams ok)")
 
 

@@ -942,7 +942,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 814840,Orvis Fernandez,orvis fernandez,NYY,60-day,D60,Injured 60-Day
 823347,Oscar Melgarejo,oscar melgarejo,CLE,60-day,D60,Injured 60-Day
 832558,Osvaldo Platas,osvaldo platas,SEA,60-day,D60,Injured 60-Day
-802086,Ovis Portes,ovis portes,CIN,7-day,D7,Injured 7-Day
 683357,Owen Caissie,owen caissie,MIA,10-day,D10,Injured 10-Day
 816000,Owen Gregg,owen gregg,TOR,7-day,D7,Injured 7-Day
 824667,Owen Puk,owen puk,WSH,60-day,D60,Injured 60-Day
@@ -998,7 +997,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 806996,Reiner López,reiner lopez,STL,full-season,ILF,Injured - Full Season
 821096,Reiver Camacho,reiver camacho,COL,60-day,D60,Injured 60-Day
 835014,Rey Pacheco,rey pacheco,MIN,60-day,D60,Injured 60-Day
-699106,Reynardo Cruz,reynardo cruz,CIN,60-day,D60,Injured 60-Day
+699106,Reynardo Cruz,reynardo cruz,CIN,7-day,D7,Injured 7-Day
 825750,Ricardo De La Paz,ricardo de la paz,SD,60-day,D60,Injured 60-Day
 800357,Ricardo Gonzalez,ricardo gonzalez,TB,60-day,D60,Injured 60-Day
 805110,Ricardo Montero,ricardo montero,LAD,7-day,D7,Injured 7-Day
@@ -1093,7 +1092,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 687071,Shane Sasaki,shane sasaki,CIN,60-day,D60,Injured 60-Day
 815272,Shay Timmer,shay timmer,DET,60-day,D60,Injured 60-Day
 571946,Shelby Miller,shelby miller,CHC,60-day,D60,Injured 60-Day
-806823,Sheng-En Lin,sheng-en lin,CIN,60-day,D60,Injured 60-Day
 813766,Skylar Hales,skylar hales,STL,7-day,D7,Injured 7-Day
 695426,Spencer Bramwell,spencer bramwell,MIA,7-day,D7,Injured 7-Day
 687462,Spencer Horwitz,spencer horwitz,PIT,10-day,D10,Injured 10-Day
@@ -1120,6 +1118,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 814512,Tommy O'Rourke,tommy orourke,NYY,full-season,ILF,Injured - Full Season
 694371,Tommy Troy,tommy troy,AZ,10-day,D10,Injured 10-Day
 621512,Tomás Nido,tomas nido,DET,7-day,D7,Injured 7-Day
+703156,Tony Blanco Jr.,tony blanco jr,PIT,7-day,D7,Injured 7-Day
 663574,Tony Santillan,tony santillan,CIN,15-day,D15,Injured 15-Day
 823994,Trace Baker,trace baker,TOR,7-day,D7,Injured 7-Day
 829403,Trace Phillips,trace phillips,TB,7-day,D7,Injured 7-Day
