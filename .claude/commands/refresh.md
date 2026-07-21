@@ -63,10 +63,15 @@ Run these steps IN ORDER. Do not reorder or skip.
 7. **Snapshot + publish** (only if step 6 passed):
    ```
    python3 scripts/snapshot.py --label weekly      # writes data/snapshots/ + manifest
-   git add data/raw/ data/processed/current_player_ratings.csv data/snapshots/
+   git add data/raw/ data/processed/current_player_ratings.csv data/snapshots/ \
+           data/recency/ data/schedule/ data/injuries/il_status.csv
    git commit -m "data refresh YYYY-MM-DD"          # today's real date
    git push origin main
    ```
+   The caches (recency/schedule/injuries) are committed too: a reader (cloud/phone)
+   can't refetch them (MLB blocks cloud VMs), so `/lineups` relies on whatever the
+   last MLB-capable writer committed. A cloud-only refresh will leave them stale —
+   that's expected; only a desktop/laptop writer refreshes them.
    Report the new HEAD hash. **In a cloud session** the push may go to a session
    branch, not `main` (cloud guards `main`): if so, confirm the push to `main` when
    prompted, or merge the branch's PR — readers only see ratings once they're on
