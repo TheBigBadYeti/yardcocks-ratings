@@ -8,16 +8,21 @@ publishes them to GitHub so every reader (`/sync` + all the decision commands) s
 them. Runs from any environment with git push access — desktop or cloud. There is
 exactly ONE writer at a time; never run this in two places at once.
 
-WHAT TO UPLOAD -- **5 files run a full refresh** (cloud caps uploads at 5, so this fits
-in one drop):
-  1. rostered-hitters    2. rostered-pitchers    3. fa-hitters    4. fa-pitchers
-  5. Team-Roster
-Those 5 are the ONLY engine inputs. Do not wait on a 6th to start.
+WHAT TO UPLOAD -- **6 files every refresh, in TWO drops** (cloud caps uploads at 5):
 
-The **Fantrax-Standings** export is a 6th, OPTIONAL file. It is NOT an engine input --
-it feeds `/posture` and trade appetite. Send it whenever convenient: in a later message,
-in next week's batch, or via the GitHub web UI. If it arrives alone, just copy it to
-`data/standings/standings.csv`, commit, and stop -- no engine re-run needed.
+  DROP 1 -- the 5 engine inputs. These run the whole refresh:
+    1. rostered-hitters   2. rostered-pitchers   3. fa-hitters   4. fa-pitchers
+    5. Team-Roster
+  DROP 2 -- one file, sent right after: **Fantrax-Standings**
+
+Standings is NOT an engine input, so NEVER block or hard-stop the refresh waiting for
+it -- publish DROP 1 first. But it IS expected every week: it drives `/posture` and
+trade appetite, and a stale one misprices every trade partner. So after publishing,
+if standings did not arrive, ASK ME FOR IT explicitly before signing off.
+
+When standings arrives (alone or in the batch): copy to `data/standings/standings.csv`,
+commit, and report the managed team's W-L from it as a freshness check. No engine
+re-run -- it's reference data, and the ratings are unaffected.
 
 Two ways to supply files:
 - ATTACHED to this session   -> the command swaps them into data/raw for you.
@@ -109,10 +114,13 @@ Run these steps IN ORDER. Do not reorder or skip.
    Players scored : <total>
    Kipp roster    : <count>
    Snapshot       : data/snapshots/ratings_YYYY-MM-DD.csv
+   Standings      : updated this run (<team> W-L) | NOT updated -- send DROP 2
    Published      : <HEAD hash> on <branch>  (pushed to main / branch / NOT pushed)
    ----------------------------------------------
    NEXT: /posture -> /lineups -> /waivers -> /trades -> /lineups (re-lock)
    ```
+   If Standings says NOT updated, ask me for the Fantrax-Standings export before you
+   sign off -- /posture and /trades will otherwise price partners off last week's table.
    Then say one line on what to run next and why, e.g. "start with /posture — it sets
    the lens /waivers and /trades price off." If the push FAILED, lead with that
    instead: no reader sees this refresh until it lands on main.

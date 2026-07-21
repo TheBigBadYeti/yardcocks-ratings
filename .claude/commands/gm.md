@@ -9,6 +9,9 @@ YARDCOCKS & BEYOND — GM commands
 
 WEEKLY PATTERN  (in order — each step feeds the next)
   1. /refresh   New Fantrax exports -> fresh ratings + caches -> published to GitHub.
+                SIX files in TWO drops (cloud caps uploads at 5):
+                  drop 1 = the 5 engine inputs (rostered H/P, FA H/P, Team-Roster)
+                  drop 2 = Fantrax-Standings (drives /posture + trade appetite)
                 Run on the LAPTOP/desktop: the MLB API is blocked from cloud VMs, so
                 only an open-network machine can refresh recency/schedule/injuries.
   2. /posture   Sets the lens. Reads your ACTUAL record from the standings export.
