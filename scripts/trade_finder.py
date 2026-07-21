@@ -74,6 +74,23 @@ def team_table(df):
     now_pct = 1 - (t["now_rank"] - 1) / max(n - 1, 1)          # 1.0 = best now
     tilt = (t["fut_rank"] - t["now_rank"]) / max(n - 1, 1)      # +ve = better now than future
     t["appetite"] = (0.5 * now_pct + 0.5 * (0.5 + tilt)).clip(0.15, 0.9).round(2)
+
+    # ACTUAL RECORD beats roster inference for who is buying/selling. The inference had
+    # JMerkle at 0.40 while he sits 2nd at 11-4 -- that mispricing is the whole point of
+    # wiring standings in. Falls back to the inference for unmapped franchises.
+    t["record"] = ""
+    try:
+        import standings as _st
+        recs, _prov, _unmapped = _st.by_owner()
+    except Exception:
+        recs = {}
+    if recs:
+        t["appetite_roster"] = t["appetite"]
+        t["appetite"] = [_st.record_appetite(recs[o]) if o in recs else a
+                         for o, a in zip(t["owner"], t["appetite"])]
+        t["record"] = [f"{recs[o]['w']}-{recs[o]['l']}"
+                       + ("*" if recs[o]["provisional"] else "") if o in recs else "?"
+                       for o in t["owner"]]
     return t.sort_values("now_rank").reset_index(drop=True)
 
 
@@ -425,9 +442,11 @@ def mode_outbound(df, a, my_app):
     # natural partners for a rebuilder = the hungriest win-now teams (high appetite)
     partners = t[(t["owner"] != a.team)].sort_values("appetite", ascending=False)
     print("\nMost natural partners (highest win-now appetite -> will pay youth for "
-          "your win-now):")
-    print(partners.head(a.partners)[["owner", "now_rank", "fut_rank",
-                                     "appetite"]].to_string(index=False))
+          "your win-now). Appetite is from ACTUAL RECORD where known (* = provisional "
+          "name mapping), else roster inference:")
+    cols = [c for c in ["owner", "record", "now_rank", "fut_rank", "appetite",
+                        "appetite_roster"] if c in partners.columns]
+    print(partners.head(a.partners)[cols].to_string(index=False))
 
     any_survivor = False
     for _, p in partners.head(a.partners).iterrows():

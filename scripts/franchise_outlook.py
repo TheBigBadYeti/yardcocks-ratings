@@ -17,9 +17,11 @@ SIGNALS (all league-relative -- your rank among the 14 owners):
                      studs.
   * AGE            = roster average age (context, not a ranked axis).
 
-STANDINGS (actual record / playoff odds) is a third axis, deliberately NOT wired
-in yet: the standings export on hand is incomplete and keys teams by name, not
-owner handle. Provide a clean export + a name->handle map and it slots in here.
+STANDINGS (actual record) is now WIRED IN via scripts/standings.py: when the Fantrax
+standings export is present and the franchise name maps to an owner handle, the ACTUAL
+standings rank replaces the roster-inferred now-rank for the posture call, and every
+team's real record is shown. Roster inference is a proxy; the record is ground truth.
+Unmapped franchises fall back to the inference and are flagged.
 
 USAGE
   python3 scripts/franchise_outlook.py --ratings data/processed/current_player_ratings.csv --team Kipp
@@ -113,21 +115,52 @@ def main():
         print(f"team {a.team!r} not found among owners"); return
     me = me.iloc[0]
     n = len(t)
-    name, plan = posture(int(me["now_rank"]), int(me["fut_rank"]), n)
+
+    # ACTUAL RECORD is ground truth for present strength; roster value is only a proxy.
+    try:
+        import standings as st
+        recs, prov, unmapped = st.by_owner()
+    except Exception:
+        recs, prov, unmapped = {}, {}, []
+    mine = recs.get(a.team)
+    now_rank_used = mine["rank"] if mine else int(me["now_rank"])
+    name, plan = posture(now_rank_used, int(me["fut_rank"]), n)
 
     print("=" * 64)
     print(f"  FRANCHISE OUTLOOK  --  {a.team}")
     print("=" * 64)
-    print(f"  Present strength : #{int(me['now_rank'])} of {n}   (startable forward value {me['now']:.0f})")
+    if mine:
+        print(f"  RECORD (actual)  : {st.summary_line(mine)}")
+        print(f"  Roster proxy     : now #{int(me['now_rank'])} of {n} "
+              f"(startable forward value {me['now']:.0f}) -- record overrides this")
+    else:
+        print(f"  Present strength : #{int(me['now_rank'])} of {n}   "
+              f"(startable forward value {me['now']:.0f})  [no standings match]")
     print(f"  Future strength  : #{int(me['fut_rank'])} of {n}   (dynasty {me['future']:.0f}, "
           f"{me['young_studs']} young studs, avg age {me['avg_age']})")
     print(f"\n  POSTURE: {name}")
     print(f"  {plan}")
-    print("\n  League now-strength ranking:")
-    for _, r in t.iterrows():
+    print("\n  League table (actual record where mapped; * = provisional mapping):")
+    order = sorted(t.to_dict("records"),
+                   key=lambda r: recs[r["owner"]]["rank"] if r["owner"] in recs else 99)
+    for r in order:
+        rec = recs.get(r["owner"])
         mark = "  <-- you" if r["owner"] == a.team else ""
-        print(f"    {int(r['now_rank']):2}. {r['owner']:9} now={r['now']:>6.0f}  "
-              f"future#{int(r['fut_rank']):2}{mark}")
+        if rec:
+            star = "*" if rec["provisional"] else ""
+            print(f"    {rec['rank']:2}. {r['owner']:9} {rec['w']:>2}-{rec['l']:<2}{star:1} "
+                  f"({rec['pct']:.3f})  roster-now#{int(r['now_rank']):2} "
+                  f"future#{int(r['fut_rank']):2}{mark}")
+        else:
+            print(f"     ?. {r['owner']:9} {'--':>5}    "
+                  f"(no standings map)  roster-now#{int(r['now_rank']):2} "
+                  f"future#{int(r['fut_rank']):2}{mark}")
+    if prov:
+        print("\n  PROVISIONAL name mappings (confirm): "
+              + ", ".join(f"{h}={f}" for h, f in prov.items()))
+    if unmapped:
+        print(f"  UNMAPPED franchises: {', '.join(unmapped)} "
+              f"-- those owners fall back to roster inference.")
     print("\n  NOTE: present strength runs on forward value -- regenerate ratings WITH the")
     print("  recency cache before trusting the rank (injured stars read dead otherwise).")
 
