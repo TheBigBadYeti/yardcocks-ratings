@@ -22,6 +22,16 @@ Show me:
 Eligibility matters for manual overrides -- a 2B/SS/OF player can be moved between
 those slots, so the ELIG column shows what each swap is legal.
 
+PROJECTION: EWP does NOT run on the raw season rate. forward_fpg is a season average,
+which misprices anyone whose season doesn't describe their present -- a player who
+missed time to injury (short, stale sample), one who's gone cold, or one heating up. So
+the projection blends RECENT form into the season rate, weighted by recent sample size
+and capped at half, and the FORM column shows the adjustment (HOT/cold/even, recent vs
+season) so a surprising start or sit is explainable. This is a LINEUP-layer correction
+only -- exactly like the health layer. win_now/dynasty are deliberately slow-reacting
+and are NOT touched. If the recency cache is missing it warns and falls back to season
+rates (run fetch_recency.py from a desktop; the MLB API is blocked on cloud VMs).
+
 Do NOT recommend specific free agents here -- that's /waivers, which reads the needs
 this produces (data/processed/lineup_needs.json) and fills them. Here, just surface
 the holes and the optimal lineup.

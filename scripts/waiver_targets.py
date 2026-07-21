@@ -70,7 +70,8 @@ def breakout_boost(rec):
     rf, rg = rec.get("recent_fpg"), rec.get("recent_games")
     if rf is None or np.isnan(rf) or (rg is not None and not np.isnan(rg) and rg < 5):
         return 0.0
-    lift = rf - _f(rec.get("ffpg"), 0.0)          # recent minus season per-game
+    # season_fpg is the RAW season rate; ffpg is now form-blended, so compare to season
+    lift = rf - _f(rec.get("season_fpg"), 0.0)    # recent minus season per-game
     if lift <= 0:
         return 0.0
     age = _f(rec.get("age"))
@@ -144,7 +145,10 @@ def build_fa_pool(df_all, games, dates, week_end, probables, recency):
     fa = fa[~fa["roster_status"].astype(str).str.lower().str.contains("minor", na=False)]
     pool = []
     for _, r in fa.iterrows():
-        rec = ol.make_rec(r, games, dates, week_end, probables)[0]
+        # pass recency so an FA's EWP is form-blended the same way a rostered player's
+        # is -- otherwise a stream would be compared against the guy he'd replace on
+        # two different models.
+        rec = ol.make_rec(r, games, dates, week_end, probables, recency)[0]
         rf, rg = recency.get(ol.norm_name(rec["player"]), (np.nan, np.nan))
         rec["recent_fpg"], rec["recent_games"] = rf, rg
         pool.append(rec)
@@ -271,7 +275,7 @@ def main():
               "your judgment):")
         for f in breakers:
             print(f"     {f['player']:<20} {str(f['team']):<4} {f['pos']:<9} recent "
-                  f"{_f(f.get('recent_fpg'), 0):.0f} vs season {_f(f.get('ffpg'), 0):.0f}"
+                  f"{_f(f.get('recent_fpg'), 0):.0f} vs season {_f(f.get('season_fpg'), 0):.0f}"
                   f"  ({int(_f(f.get('age'), 0))}yo, fut {_f(f.get('dynasty'), 0):.0f})")
 
     # 2) STREAM to fill THIS WEEK's openings -- explicitly short-term (this-week points

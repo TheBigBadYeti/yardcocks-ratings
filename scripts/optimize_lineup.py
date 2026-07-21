@@ -38,6 +38,16 @@ ELIGIBLE_STATUS = {"active", "reserve"}
 RP_APPEAR_RATE = 0.45   # relievers appear in ~45% of team games (rough)
 ROSTER_LIMIT = 40       # Fantrax dynasty roster cap; at/above => an add needs a drop
 
+# FORM BLEND (lineup layer only -- scoring is untouched).
+# forward_fpg is a SEASON rate. For a weekly lineup that misprices anyone whose season
+# doesn't describe their present: a player who missed time to injury (short, stale
+# sample), one who's gone cold, or one who's heating up. So blend recent form into the
+# projection, weighted by how much recent sample exists, capped so form informs rather
+# than dominates. This is the same principle as the health layer -- current form is a
+# LINEUP fact, not an asset fact; win_now/dynasty stay deliberately slow-reacting.
+RECENT_FULL_G = 20      # recent games at which form carries full (capped) weight
+RECENT_W_MAX = 0.50     # form never exceeds half the projection
+
 # Fantrax -> MLB Stats API abbreviation aliases. Extend from the miss report.
 TEAM_ALIAS = {"CHW": "CWS", "OAK": "ATH", "AZ": "ARI", "WAS": "WSH", "TBR": "TB",
               "KCR": "KC", "SDP": "SD", "SFG": "SF", "WSN": "WSH", "CHW ": "CWS"}
@@ -114,17 +124,44 @@ def infer_starts(name, sched_team, games, dates, week_end, probables):
     return (1 if games.get(sched_team, 0) > 0 else 0), "assumed"
 
 
-def make_rec(r, games, dates, week_end, probables):
+def load_recency(path="data/recency/recent_fpg.csv"):
+    """norm_name -> (recent_fpg, recent_games) for the lineup form blend."""
+    if not os.path.exists(path):
+        return {}
+    try:
+        d = pd.read_csv(path, encoding="utf-8")
+    except Exception:
+        return {}
+    return {norm_name(r["name"]): (_numv(r.get("recent_fpg")), _numv(r.get("recent_games")))
+            for _, r in d.iterrows()}
+
+
+def blend_fpg(season_fpg, recent_fpg, recent_games):
+    """Projected per-game rate for THIS week = season rate nudged toward recent form.
+    Weight scales with recent sample and caps at RECENT_W_MAX, so a hot/cold streak
+    moves the projection without hijacking it. Returns (projected, weight_used)."""
+    if not recent_games or recent_games <= 0 or recent_fpg is None or recent_fpg <= 0:
+        return season_fpg, 0.0
+    w = min(recent_games / RECENT_FULL_G, 1.0) * RECENT_W_MAX
+    return (1 - w) * season_fpg + w * recent_fpg, w
+
+
+def make_rec(r, games, dates, week_end, probables, recency=None):
     """Build one player's lineup record (EWP + detail). Shared by the roster pool
     build and the /waivers FA pool build, so both value players identically."""
     sched_team, ok = resolve_team(r.get("team", ""), games)
     gw = games.get(sched_team, 0)
-    ffpg = float(r.get("forward_fpg") or 0) if pd.notna(r.get("forward_fpg")) else 0.0
+    season_fpg = float(r.get("forward_fpg") or 0) if pd.notna(r.get("forward_fpg")) else 0.0
+    rf, rg = (recency or {}).get(norm_name(r["player"]), (float("nan"), float("nan")))
+    rf = None if rf != rf else rf                      # NaN -> None
+    rg = 0.0 if rg != rg else rg
+    ffpg, form_w = blend_fpg(season_fpg, rf, rg)
     pr = float(r.get("play_rate") or 1.0) if pd.notna(r.get("play_rate")) else 1.0
     role = str(r.get("role", "H"))
     rec = {"player": r["player"], "team": r.get("team", ""), "sched_team": sched_team,
            "sched_ok": ok, "pos": r.get("position", ""),
            "tok": tokens(r.get("position", "")), "role": role, "ffpg": ffpg,
+           "season_fpg": season_fpg, "recent_fpg": rf, "form_w": form_w,
            "play_rate": pr, "games": gw, "status": r.get("roster_status", ""),
            "age": r.get("age", ""), "dynasty": r.get("dynasty_score", ""),
            "win_now": r.get("win_now_score", ""), "fpts": r.get("fpts", ""),
@@ -151,7 +188,7 @@ def _numv(v):
         return 0.0
 
 
-def build_pool(df_all, games, dates, week_end, probables, team):
+def build_pool(df_all, games, dates, week_end, probables, team, recency=None):
     """Return (players, misses, il_excluded) for one team's startable pool.
     il_excluded = players dropped by the health layer (MLB IL), each carrying their
     asset value + a HOLD flag so a stud (Meyer) reads as 'IR and hold', not 'replace'."""
@@ -168,7 +205,7 @@ def build_pool(df_all, games, dates, week_end, probables, team):
 
     players, misses = [], []
     for _, r in df.iterrows():
-        rec, ok = make_rec(r, games, dates, week_end, probables)
+        rec, ok = make_rec(r, games, dates, week_end, probables, recency)
         if not ok:
             misses.append((r["player"], r.get("team", "")))
         players.append(rec)
@@ -280,6 +317,17 @@ def diagnose_needs(hit_lineup, sp_lineup, rp_lineup, players, week_end,
     }
 
 
+def _form_tag(rec):
+    """Show how recent form moved the projection off the season rate, so a surprising
+    start/sit is explainable rather than mysterious."""
+    rf, s = rec.get("recent_fpg"), rec.get("season_fpg")
+    if not rf or not s or not rec.get("form_w"):
+        return "(season rate only)"
+    d = rf - s
+    arrow = "HOT " if d > 0.3 else "cold" if d < -0.3 else "even"
+    return f"{arrow} recent {rf:.1f} vs szn {s:.1f}"
+
+
 def roster_view(df_all, team, players, started, il_lag):
     """Print the WHOLE 40-man roster grouped by slot type, with each player's Fantrax
     position eligibility. Covers the parts the lineup optimizer drops: reserves, the
@@ -339,8 +387,13 @@ def main():
     df_all = pd.read_csv(a.ratings)
     roster_count = int((df_all["owner_status"].astype(str)
                         .str.fullmatch(a.team, case=False, na=False)).sum())
+    recency = load_recency()
+    if not recency:
+        print("[lineup] WARNING: no recency cache -- projections fall back to season "
+              "rates, so cold/hot streaks and injury-shortened samples won't be "
+              "corrected. Run fetch_recency.py from a desktop.", file=sys.stderr)
     players, misses, il_excluded = build_pool(df_all, games, dates, week_end,
-                                              probables, a.team)
+                                              probables, a.team, recency)
 
     hitters = [p for p in players if p["role"] == "H"]
     hit_lineup = optimal_hitters(hitters)
@@ -352,12 +405,14 @@ def main():
     total = sum(p["ewp"] for _, p in full)
 
     print(f"\n=== {a.team} - schedule-aware lineup, week ending {week_end} ===")
-    print(f"{'SLOT':<5} {'PLAYER':<22} {'TEAM':<4} {'ELIG':<9} {'THIS WEEK':<20} {'EWP':>6}")
-    print("-" * 68)
+    print(f"{'SLOT':<5} {'PLAYER':<22} {'TEAM':<4} {'ELIG':<9} {'THIS WEEK':<20} "
+          f"{'EWP':>6}  FORM")
+    print("-" * 80)
     def _row(slot, rec, empty):
         if rec:
             print(f"{slot:<5} {rec['player']:<22} {str(rec['team']):<4} "
-                  f"{str(rec['pos']):<9} {rec['detail']:<20} {rec['ewp']:>6.1f}")
+                  f"{str(rec['pos']):<9} {rec['detail']:<20} {rec['ewp']:>6.1f}"
+                  f"  {_form_tag(rec)}")
         else:
             print(f"{slot:<5} {'-- UNFILLED --':<22} {'':<4} {'':<9} {empty:<20} {0.0:>6.1f}")
     for slot, rec in hit_lineup:
