@@ -461,6 +461,21 @@ def main():
         cleanup.append((f"IR {h['player']}", "frees ACTIVE slot (roster same)",
                         f"MLB-IL, scores 0. HOLD win {h['win_now']:.0f}", "HIGH"))
 
+    # STANDING POLICY: run the farm full at 10 and keep MLB bench spots for players who
+    # can actually play. A prospect with 0 GP parked on Reserve is a wasted MLB spot --
+    # demote him into a farm slot vacated by your weakest prospect.
+    dem, worst = restructure_option(df_all, a.team, app)
+    if dem is not None:
+        cleanup.append((f"DROP {worst['player']}", "-1 roster, frees farm slot",
+                        f"weakest farm asset (val {worst['_v']:.0f}, "
+                        f"{int(worst['age'])}yo); farm stays full at {SLOTS_MINORS}",
+                        "HIGH"))
+        cleanup.append((f"DEMOTE {dem['player']}", "frees an MLB BENCH spot",
+                        f"{int(dem['estimated_games'])} GP -- reserve is for MLB "
+                        f"contributors, not prospects", "HIGH"))
+        spots += 1
+        freed_by.append(worst["player"])
+
     print("\n=== STEP 1 - ROSTER CLEANUP (do first; uses no claims) ===")
     if not cleanup:
         print("   nothing to clear.")
@@ -471,25 +486,13 @@ def main():
         print(f"\n   => 40-man {led['total']} -> {led['total'] - len(freed_by)}"
               f"   ({spots} spot(s) now available for adds)")
 
-    # OPTIONAL restructure: convert a dead farm slot into MLB bench capacity.
-    dem, worst = restructure_option(df_all, a.team, app)
-    if dem is not None and led["active"] + led["reserve"] >= SLOTS_ACTIVE + SLOTS_RESERVE:
+    if dem is not None:
         best_val = max((f["_val"] for f in cand), default=0.0)
-        net = best_val - worst["_v"]
-        print(f"\n   OPTIONAL - free an MLB bench spot without cutting anyone useful:")
-        print(f"     DROP {worst['player']} (Minors, val {worst['_v']:.0f}, "
-              f"{int(worst['age'])}yo -- your weakest farm asset)")
-        print(f"     DEMOTE {dem['player']} to the vacated farm slot "
-              f"({int(dem['age'])}yo, dyn {dem['dynasty_score']:.0f}, "
-              f"{dem['estimated_games']:.0f} GP -- he's occupying an MLB bench spot "
-              f"while contributing nothing)")
-        print(f"     => MLB pool {led['active'] + led['reserve']} -> "
-              f"{led['active'] + led['reserve'] - 1}, one more add possible.")
-        print(f"     WORTH IT ONLY IF you spend that spot on VALUE, not a streamer: "
-              f"best available is {best_val:.0f} vs the {worst['_v']:.0f} you're cutting "
-              f"(net {net:+.0f}). Trading a real asset for a few points in a lost week "
-              f"is a loss.")
-        print(f"     Verify {dem['player']} is still minors-eligible in Fantrax first.")
+        print(f"     ^ costs your weakest farm asset ({worst['_v']:.0f}) to convert a "
+              f"wasted bench spot into a usable one. Best available is {best_val:.0f}, "
+              f"so spend the freed spot on VALUE, not a streamer.")
+        print(f"     ^ verify {dem['player']} is still minors-eligible in Fantrax "
+              f"(the export can't confirm it).")
 
     # ---- STEP 2/3: adds, split into a do-this tier and a think-about-it tier -------
     tier1, tier2 = [], []

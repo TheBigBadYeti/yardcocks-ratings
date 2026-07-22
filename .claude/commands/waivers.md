@@ -31,6 +31,12 @@ Show me what it prints:
   honestly: each costs a drop for zero present points.
 - RETURNING FROM INJURY, and DROP CANDIDATES.
 
+STANDING ROSTER POLICY (mine, not the model's): run the farm FULL at 10, and keep MLB
+Reserve/bench spots for players who can actually play. A prospect sitting on Reserve
+with 0 GP is a wasted MLB spot -- demote him into a farm slot vacated by the weakest
+prospect. The tool surfaces this in STEP 1; treat it as a real move, not an aside, and
+flag that minors eligibility has to be confirmed in Fantrax.
+
 AFTER I ACT: when I tell you which moves I actually made in Fantrax, record each one --
   python scripts/pending_moves.py add|drop|ir "<player>"
 That overlay makes /lineups and /waivers agree with my real roster immediately, instead
