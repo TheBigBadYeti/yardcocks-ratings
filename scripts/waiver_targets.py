@@ -38,6 +38,13 @@ import optimize_lineup as ol
 
 OWNERS = {"CLANK", "Coop", "GoldTY", "Greenbet", "Hutch", "JMerkle", "Jpanner",
           "KRetiree", "Kipp", "Sasso", "Sethmc44", "joeybats", "kyfaess", "zyoung51"}
+
+# Hard roster structure (SYSTEM_SPEC s2): 40 total = 18 Active + 8 Reserve + 4 IR +
+# 10 Minors. The IR cap is the one that bites: with 4/4 used you CANNOT park an
+# injured player there to free an active slot until you clear an IR spot first.
+SLOTS_ACTIVE, SLOTS_RESERVE, SLOTS_IR, SLOTS_MINORS = 18, 8, 4, 10
+ROSTER_TOTAL = 40
+MAX_CLAIMS_WEEK = 7                    # FAAB: 100 budget, max 7 claims/week
 APPETITE = {"contend": 0.80, "retool": 0.55, "rebuild": 0.20}
 YOUNG, VET, KEEP_DYNASTY = 25, 29, 60
 KEEPER_AGE, KEEPER_DYN = 26, 55        # "keeper-quality" for a weak-slot upgrade
@@ -92,12 +99,16 @@ def _starts(rec):
 
 
 def fa_fits(rec, eligible):
-    """Can this FA fill a slot whose eligibility token is `eligible`? Pitching slots
-    are start-driven here, so only starting arms qualify (a pure RP is not a fill)."""
+    """Can this FA fill a slot whose eligibility token is `eligible`?
+    NOTE: an earlier version barred pure RPs from RP slots on the theory that only
+    starts matter here. That was wrong -- checked against the data, a multi-inning
+    reliever like Headrick has 50 IP / 187 pts on a full-season sample, and with IP+3
+    and HLD+3 he genuinely out-earns a weak one-start arm. Ranking is now decided by
+    MEASURED lineup impact, so no heuristic exclusion is needed."""
     if eligible == "SP":
         return rec["role"] in ("SP", "SP/RP")
     if eligible == "RP":
-        return rec["role"] == "SP/RP"        # SP/RP can slot at RP AND will start
+        return rec["role"] in ("RP", "SP/RP")
     if eligible == "H":                       # UT: any hitter
         return rec["role"] == "H"
     return rec["role"] == "H" and eligible in rec["tok"]   # specific hitter position
@@ -164,6 +175,50 @@ def _line(rec, extra=""):
             f"{rec['detail']:<20} EWP {rec['ewp']:>5.1f}  ({tag}){kq}{extra}")
 
 
+def lineup_total(players):
+    """Total EWP of the optimal lineup buildable from this pool."""
+    hit = ol.optimal_hitters([p for p in players if p["role"] == "H"])
+    sp, rp, _ = ol.assign_pitchers(players)
+    return (sum(r["ewp"] for _, r in hit if r)
+            + sum(p["ewp"] for _, p in sp + rp))
+
+
+def add_impact(players, base_total, cand):
+    """REAL lineup gain from adding this player: re-run the optimizer with him in the
+    pool and diff the total. Answers 'how does this add actually make us better?'
+    rather than just asserting a player is good. 0 means he wouldn't crack the 18."""
+    return lineup_total(players + [cand]) - base_total
+
+
+def _cheap_ir_occupants(df_all, team, app, n=2):
+    """Lowest-value players sitting in the scarce IR slots -- releasing one is what
+    unblocks parking an injured stud there."""
+    k = df_all[df_all["owner_status"].astype(str)
+               .str.fullmatch(team, case=False, na=False)].copy()
+    k = k[k["roster_status"].astype(str).str.lower().str.contains("inj", na=False)]
+    if k.empty:
+        return []
+    wn = pd.to_numeric(k.get("win_now_score"), errors="coerce").fillna(0)
+    dy = pd.to_numeric(k.get("dynasty_score"), errors="coerce").fillna(0)
+    k["_v"] = app * wn + (1 - app) * dy
+    return [(r["player"], r["_v"]) for _, r in k.nsmallest(n, "_v").iterrows()]
+
+
+def roster_ledger(df_all, team):
+    """Slot accounting against the league's hard limits, so recommendations respect
+    what you can actually DO -- not just who's available."""
+    k = df_all[df_all["owner_status"].astype(str)
+               .str.fullmatch(team, case=False, na=False)]
+    rs = k["roster_status"].astype(str).str.lower()
+    return {
+        "total": len(k),
+        "active": int((rs == "active").sum()),
+        "reserve": int((rs == "reserve").sum()),
+        "ir": int(rs.str.contains("inj", na=False).sum()),
+        "minors": int(rs.str.contains("minor", na=False).sum()),
+    }
+
+
 def compute_needs(df_all, games, dates, week_end, probables, team):
     players, _m, il = ol.build_pool(df_all, games, dates, week_end, probables, team)
     hit_lineup = ol.optimal_hitters([p for p in players if p["role"] == "H"])
@@ -174,7 +229,7 @@ def compute_needs(df_all, games, dates, week_end, probables, team):
                         .str.fullmatch(team, case=False, na=False)).sum())
     needs = ol.diagnose_needs(hit_lineup, sp_lineup, rp_lineup, players, week_end,
                               il, roster_count)
-    return needs, started
+    return needs, started, players
 
 
 def drop_candidates(df_all, team, app, n, exclude):
@@ -218,16 +273,44 @@ def main():
     probables = ol.load_probables(a.probables)
     app = APPETITE[a.posture]
 
-    needs, started = compute_needs(df_all, games, dates, week_end, probables, a.team)
+    needs, started, players = compute_needs(df_all, games, dates, week_end,
+                                            probables, a.team)
     recency = load_recency()
     returning = load_returning()
     fa = build_fa_pool(df_all, games, dates, week_end, probables, recency)
+    led = roster_ledger(df_all, a.team)
+    base_total = lineup_total(players)
 
-    print(f"\n=== {a.team} WAIVER TARGETS | posture={a.posture} churn={a.churn} "
-          f"| week ending {needs['week_end']} ===")
-    print(f"Roster {needs['roster_count']}/{needs['roster_limit']}"
-          + ("  (FULL -- each add needs a drop below)" if needs["roster_full"]
-             else f"  ({needs['roster_limit'] - needs['roster_count']} open)"))
+    print(f"\n=== {a.team} WAIVERS | posture={a.posture} | week ending "
+          f"{needs['week_end']} | lineup now {base_total:.0f} EWP ===")
+
+    # ---- ROSTER LEDGER: what you can actually DO -------------------------------
+    print(f"\n--- ROSTER ({led['total']}/{ROSTER_TOTAL}) vs hard limits ---")
+    for label, have, cap in (("Active", led["active"], SLOTS_ACTIVE),
+                             ("Reserve", led["reserve"], SLOTS_RESERVE),
+                             ("Inj Res", led["ir"], SLOTS_IR),
+                             ("Minors", led["minors"], SLOTS_MINORS)):
+        if have < cap:
+            note = f"{cap - have} OPEN"
+        elif have == cap:
+            note = "FULL"
+        else:
+            note = f"OVER by {have - cap} (verify in Fantrax)"
+        print(f"   {label:<9} {have:>2}/{cap:<3} {note}")
+    print(f"   {'TOTAL':<9} {led['total']:>2}/{ROSTER_TOTAL:<3} "
+          + ("FULL -- every add costs a drop" if led["total"] >= ROSTER_TOTAL else "room"))
+    print(f"   FAAB: max {MAX_CLAIMS_WEEK} claims/week.")
+
+    il = needs["il_openings"]
+    ir_blocked = led["ir"] >= SLOTS_IR and il
+    if ir_blocked:
+        cheap_ir = _cheap_ir_occupants(df_all, a.team, app)
+        print(f"\n   ** IR IS FULL ({led['ir']}/{SLOTS_IR}). ** You CANNOT move "
+              f"{', '.join(x['player'] for x in il)} to IR to free an active slot "
+              f"until an IR spot opens.")
+        if cheap_ir:
+            print("   Cheapest IR occupants to release first: "
+                  + ", ".join(f"{n} (val {v:.0f})" for n, v in cheap_ir))
 
     def has_team(f):
         t = str(f.get("team")).strip().lower()
@@ -238,63 +321,66 @@ def main():
         f["_base"], f["_boost"] = add_value(f, app)
         f["_val"] = f["_base"] + f["_boost"]
 
-    # 1) BEST ADDS -- the headline: total value NOW + FUTURE (posture-weighted), with a
-    # capped breakout boost. A waiver add is a roster commitment judged on season +
-    # future value, NOT one week of projected starts. Tagged with what each also does.
+    # ---- MOVES: every recommendation is a real transaction with a MEASURED effect ----
+    # Shortlist first (simulating the optimizer across thousands of FAs would be waste),
+    # then measure each candidate's ACTUAL lineup gain by re-running the optimizer with
+    # him in the pool. That answers "how does this add make us better?" with a number
+    # instead of asserting a player is good.
     cand = [f for f in fa if has_team(f) and f["_val"] > 0]
-    top = dedupe(sorted(cand, key=lambda x: -x["_val"]))[:a.n + 3]
-    print("\n--- BEST ADDS (value NOW + FUTURE, posture-weighted; a roster move, not a "
-          "1-week rental) ---")
-    for f in top:
-        tags = []
-        if any(fa_fits(f, e) for e in unfilled_elig):
-            tags.append("fills opening")
+    short = dedupe(sorted(cand, key=lambda x: -x["_val"])[:25]
+                   + sorted([f for f in cand if f["ewp"] > 0
+                             and any(fa_fits(f, e) for e in unfilled_elig)],
+                            key=lambda x: -x["ewp"])[:15])
+    for f in short:
+        f["_impact"] = add_impact(players, base_total, f)
+
+    drops = drop_candidates(df_all, a.team, app, 6, started | {x["player"] for x in il})
+    drop_txt = (f"drop {drops[0][0]} (val {drops[0][1]:.0f}, lowest-value spare)"
+                if drops else "no easy cut -- free a spot by trade")
+
+    helpers = sorted([f for f in short if f["_impact"] > 0.5],
+                     key=lambda x: -x["_impact"])[:a.n]
+    print("\n--- MOVES THAT IMPROVE THIS WEEK'S LINEUP (measured, not asserted) ---")
+    if not helpers:
+        print("   None. No available FA cracks your optimal 18 -- your startable core "
+              "already beats the wire. Spend claims on future value instead.")
+    for f in helpers:
+        fills = [e for e in unfilled_elig if fa_fits(f, e)]
+        why = (f"fills your empty {fills[0]} slot (0 pts there today)" if fills
+               else "outproduces your weakest startable at his slot")
+        extra = []
         if f["_boost"] > 0.5:
-            tags.append(f"breakout +{f['_boost']:.0f}")
-        if ol.norm_name(f["player"]) in returning:
-            tags.append("returning")
+            extra.append(f"hot: {_f(f.get('recent_fpg'), 0):.0f} recent vs "
+                         f"{_f(f.get('season_fpg'), 0):.0f} season")
         if keeper_quality(f):
-            tags.append("keeper")
-        rec = (f", rec {f['recent_fpg']:.0f}" if not np.isnan(_f(f.get("recent_fpg")))
-               else "")
-        tg = ("  [" + ", ".join(tags) + "]") if tags else ""
-        print(f"   {f['player']:<21} {str(f['team']):<4} {f['pos']:<9} "
-              f"val {f['_val']:>4.0f} (now {_f(f.get('win_now'), 0):.0f}/"
-              f"fut {_f(f.get('dynasty'), 0):.0f})  {int(_f(f.get('fpts'), 0))}pt szn{rec}"
-              f"  {int(_f(f.get('age'), 0))}yo{tg}")
+            extra.append(f"also a keeper ({int(_f(f.get('age'), 0))}yo, "
+                         f"fut {_f(f.get('dynasty'), 0):.0f})")
+        if ol.norm_name(f["player"]) in returning:
+            extra.append("returning from IL")
+        conf = _f(f.get("conf"))
+        if not np.isnan(conf) and conf < 0.6:
+            extra.append(f"THIN SAMPLE (conf {conf:.2f}) -- the projection is shaky, "
+                         f"verify before spending a claim")
+        print(f"\n   ADD {f['player']}  ({f['team']} {f['pos']})   <-  {drop_txt}")
+        print(f"      WHY   : {why}; {f['detail']}."
+              + ("  " + "; ".join(extra) + "." if extra else ""))
+        print(f"      LINEUP: {base_total:.0f} -> {base_total + f['_impact']:.0f} EWP "
+              f"(+{f['_impact']:.1f} this week)")
+        print(f"      COST  : roster is {led['total']}/{ROSTER_TOTAL}, so this needs the "
+              f"drop above. 1 of {MAX_CLAIMS_WEEK} weekly claims.")
 
-    # breakout watch: the biggest recent-form risers NOT already in the top list -- hot
-    # young guys whose season value hasn't caught up. Could be lasting; small sample, so
-    # it's a flagged judgment call, kept separate so value stays the headline.
-    top_names = {f["player"] for f in top}
-    breakers = dedupe(sorted([f for f in cand if f["_boost"] >= 4
-                              and f["player"] not in top_names and has_team(f)],
-                             key=lambda x: -x["_boost"]))[:3]
-    if breakers:
-        print("  breakout watch (recent >> season, could be for real -- small sample, "
-              "your judgment):")
-        for f in breakers:
-            print(f"     {f['player']:<20} {str(f['team']):<4} {f['pos']:<9} recent "
-                  f"{_f(f.get('recent_fpg'), 0):.0f} vs season {_f(f.get('season_fpg'), 0):.0f}"
-                  f"  ({int(_f(f.get('age'), 0))}yo, fut {_f(f.get('dynasty'), 0):.0f})")
+    # Future-value adds that do NOT help this week -- honest about the tradeoff.
+    future = [f for f in short if f.get("_impact", 0) <= 0.5 and keeper_quality(f)]
+    future = sorted(future, key=lambda x: -x["_val"])[:3]
+    if future:
+        print("\n--- FUTURE-VALUE ADDS (won't crack this week's 18) ---")
+        for f in future:
+            print(f"   {f['player']:<21} {str(f['team']):<4} {f['pos']:<9} "
+                  f"val {f['_val']:>4.0f} (now {_f(f.get('win_now'), 0):.0f}/"
+                  f"fut {_f(f.get('dynasty'), 0):.0f})  {int(_f(f.get('age'), 0))}yo")
+        print("   Each costs a drop for ZERO points this week -- only worth it if you "
+              "rate him above the guy you'd cut.")
 
-    # 2) STREAM to fill THIS WEEK's openings -- explicitly short-term (this-week points
-    # for empty slots). Secondary to value: only when you just need to plug a hole now.
-    if needs["unfilled"]:
-        print("\n--- STREAM TO FILL THIS WEEK'S OPENINGS (short-term; this-week points "
-              "only, for the empty slots) ---")
-        opens = Counter((s["slot"], s["eligible"]) for s in needs["unfilled"])
-        for (slot, elig), count in opens.items():
-            cands = dedupe(sorted([f for f in fa if fa_fits(f, elig) and f["ewp"] > 0],
-                                  key=lambda x: _sort_key(x, elig)))[:a.n]
-            note = f" (x{count})" if count > 1 else ""
-            pitch = "  [starters only]" if elig in ("SP", "RP") else ""
-            print(f"  {slot}{note}, needs {elig}{pitch}:")
-            for c in cands:
-                print(f"     {c['player']:<20} {str(c['team']):<4} {c['detail']:<20} "
-                      f"EWP {c['ewp']:>4.1f}")
-            if not cands:
-                print("     (no eligible starter with a game this week)")
 
     # 3) RETURNING FROM INJURY -- available FAs on an MLB rehab assignment (grab before
     # activation). Value-floored so it's real assets, not fringe rehabbing prospects.
@@ -314,13 +400,17 @@ def main():
     # 4) DROPS -- what an add costs, if at the cap. IL players are HOLDS, not cuts.
     if needs["roster_full"]:
         print("\n--- DROP CANDIDATES (lowest value to you; YOUR call, not auto) ---")
-        il = needs["il_openings"]
         if il:
             holds = [x["player"] + (" (on rehab -- back soon)"
                                     if ol.norm_name(x["player"]) in returning else "")
                      for x in il if x["hold"]]
             cuttable = [x["player"] for x in il if not x["hold"]]
-            print("   FIRST: IR your IL players -- frees a slot with NO cut.")
+            if ir_blocked:
+                print(f"   NOTE: IR is {led['ir']}/{SLOTS_IR} FULL, so you canNOT park "
+                      f"an injured player there to dodge a cut -- clear an IR slot first "
+                      f"(see the cheapest occupants above).")
+            else:
+                print("   FIRST: IR your IL players -- frees a slot with NO cut.")
             if holds:
                 print(f"     HOLD (top assets, do NOT drop -- they return): "
                       f"{', '.join(holds)}")

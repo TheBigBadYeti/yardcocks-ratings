@@ -165,7 +165,8 @@ def make_rec(r, games, dates, week_end, probables, recency=None):
            "play_rate": pr, "games": gw, "status": r.get("roster_status", ""),
            "age": r.get("age", ""), "dynasty": r.get("dynasty_score", ""),
            "win_now": r.get("win_now_score", ""), "fpts": r.get("fpts", ""),
-           "ros_vor": r.get("ros_vor", "")}
+           "ros_vor": r.get("ros_vor", ""), "conf": r.get("sample_confidence", ""),
+           "ip": r.get("ip", "")}
     if role == "H":
         rec["ewp"] = ffpg * gw * pr
         rec["detail"] = f"{gw} games"
