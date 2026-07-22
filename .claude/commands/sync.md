@@ -21,3 +21,9 @@ Steps:
 
 If the ratings file is missing or empty after sync, say so -- it means no one has
 published yet, not that sync failed.
+
+If the ratings look STALE (Arozarena's numbers match last week, or the file's last
+commit is old), check for an unmerged PR before blaming the data: a cloud /refresh can
+only push to its own branch, so its work sits invisible until that PR is merged. Run
+`gh pr list` (or check GitHub) and tell me -- that's the most common cause of "I
+refreshed but nothing changed."

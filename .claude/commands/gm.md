@@ -44,6 +44,8 @@ WHO WRITES WHAT
 ON THE ROAD
   Phone/cloud: /sync, then any decision command.
   /refresh works from the cloud too -- a daily GitHub Action keeps the MLB caches fresh,
-  so cloud and desktop read identical data. Only note: a cloud session pushes to a
-  feature branch, so merge its PR (or tell it to push to main) before readers see it.
+  so cloud and desktop read identical data. ONE CATCH: a cloud session can only push to
+  its own branch (the git proxy enforces this -- you cannot tell it to push to main), so
+  a cloud /refresh is NOT live until you MERGE ITS PR. Desktop pushes straight to main
+  and needs no PR.
 ```

@@ -102,11 +102,19 @@ Run these steps IN ORDER. Do not reorder or skip.
    can't refetch them (MLB blocks cloud VMs), so `/lineups` relies on whatever the
    last MLB-capable writer committed. A cloud-only refresh will leave them stale —
    that's expected; only a desktop/laptop writer refreshes them.
-   Report the new HEAD hash. **In a cloud session** the push may go to a session
-   branch, not `main` (cloud guards `main`): if so, confirm the push to `main` when
-   prompted, or merge the branch's PR — readers only see ratings once they're on
-   `main`. If the push FAILS (no write auth), say so plainly: the ratings are built and
-   committed locally but NOT published.
+   Report the new HEAD hash, and **name the branch you pushed to**.
+
+   **IN A CLOUD SESSION THIS ALWAYS GOES TO A BRANCH, NEVER `main`.** The CCR git proxy
+   "restricts git push operations to the current working branch" — that is
+   infrastructure, not a preference, so do NOT offer to `git push origin main` and do
+   not ask for permission to; it will just 403. Instead: open the PR (or tell me to),
+   and state plainly that the refresh is NOT live until that PR is merged. `/sync` and
+   every decision command read `main`, so an unmerged PR means readers still see last
+   week's numbers.
+
+   From a desktop/laptop there's no proxy, so the push lands on `main` directly and no
+   PR is needed. If the push FAILS outright (no write auth), say so plainly: the ratings
+   are built and committed locally but NOT published.
 
 8. **Print the summary block:**
    ```
@@ -116,10 +124,15 @@ Run these steps IN ORDER. Do not reorder or skip.
    Kipp roster    : <count>
    Snapshot       : data/snapshots/ratings_YYYY-MM-DD.csv
    Standings      : updated this run (<team> W-L) | NOT updated -- send DROP 2
-   Published      : <HEAD hash> on <branch>  (pushed to main / branch / NOT pushed)
+   Published      : <HEAD hash> on <branch>
+   LIVE?          : YES (on main) | NO -- MERGE PR #<n> FIRST
    ----------------------------------------------
-   NEXT: /posture -> /lineups -> /waivers -> /trades -> /lineups (re-lock)
+   NEXT: <merge the PR, then> /posture -> /lineups -> /waivers -> /trades
    ```
+   If you pushed to a branch, the LIVE line must say NO and the NEXT line must lead with
+   merging the PR. Never end a cloud refresh without that reminder -- the whole run is
+   invisible to readers until it merges, and that failure is silent.
+
    If Standings says NOT updated, ask me for the Fantrax-Standings export before you
    sign off -- /posture and /trades will otherwise price partners off last week's table.
    Then say one line on what to run next and why, e.g. "start with /posture — it sets
