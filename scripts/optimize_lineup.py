@@ -333,7 +333,10 @@ def diagnose_needs(hit_lineup, sp_lineup, rp_lineup, players, week_end,
         if have <= n:
             thin.append({"role": role_name, "startable": have, "slots": n})
 
-    starts_used = sum(p.get("starts", 0) for _, p in sp_lineup)
+    # The 12-start cap counts every START, whatever slot the arm occupies -- an SP/RP
+    # sitting in an RP slot (Chad Patrick) still burns one. Counting only sp_lineup
+    # here overstated the remaining room and could walk you past the cap.
+    starts_used = sum(p.get("starts", 0) for _, p in (sp_lineup + rp_lineup))
     return {
         "team": None, "week_end": str(week_end),
         "slots": slots,

@@ -4,7 +4,9 @@
 
 # Processed outputs — regenerated each run. Only the published ratings file is tracked
 # (readers pull it via /sync); everything else in data/processed/ stays local.
-data/processed/*.csv
+# Match ALL extensions, not just *.csv: lineup_needs.json used to slip through and show
+# as untracked on every read-only /lineups run, tripping the stop hook in reader sessions.
+data/processed/*
 !data/processed/current_player_ratings.csv
 
 # News — recent_moves.csv committed each refresh
@@ -18,9 +20,9 @@ data/processed/*.csv
 # Claude Code — machine-local settings stay off the repo
 .claude/settings.local.json
 
-# Injuries — IL + returning (rehab) snapshots committed so cloud/phone readers get
-# them. The writer needs MLB API access (cloud VMs are blocked), so a reader can't
-# refetch; /lineups and /waivers read what an MLB-capable writer committed.
+# Injuries — IL + returning (rehab) snapshots committed so every session reads the same
+# data. A Claude cloud VM can't fetch them itself (sandbox egress allowlist, not MLB),
+# but the daily GitHub Action keeps them current.
 data/injuries/*
 !data/injuries/il_status.csv
 !data/injuries/returning.csv
@@ -29,6 +31,3 @@ data/injuries/*
 .venv/
 __pycache__/
 *.pyc
-
-# track the ratings output so cloud can read it directly
-!data/processed/current_player_ratings.csv
