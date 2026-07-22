@@ -213,6 +213,31 @@ def add_impact(players, base_total, cand):
     return lineup_total(players + [cand]) - base_total
 
 
+def restructure_option(df_all, team, app):
+    """Free an MLB-pool spot WITHOUT cutting anyone useful: demote a rostered player who
+    isn't playing (0 GP, minors-eligible) into a farm slot vacated by your weakest
+    prospect. The tool otherwise treats minors slots as untouchable, so it never sees
+    that a dead farm spot can be converted into MLB bench capacity.
+
+    Returns (demote_rec, worst_minors_rec) or (None, None)."""
+    k = df_all[df_all["owner_status"].astype(str)
+               .str.fullmatch(team, case=False, na=False)].copy()
+    for c in ("age", "dynasty_score", "win_now_score", "estimated_games"):
+        k[c] = pd.to_numeric(k.get(c), errors="coerce")
+    k["_v"] = app * k["win_now_score"].fillna(0) + (1 - app) * k["dynasty_score"].fillna(0)
+    rs = k["roster_status"].astype(str).str.lower()
+
+    # demotable = on the MLB roster, young, and hasn't actually played (so he's very
+    # likely still minors-eligible and is contributing nothing where he sits)
+    dem = k[rs.str.contains("reserve|active", na=False)
+            & (k["estimated_games"].fillna(0) < 5) & (k["age"] <= YOUNG + 1)]
+    minors = k[rs.str.contains("minor", na=False)]
+    if dem.empty or minors.empty:
+        return None, None
+    return (dem.sort_values("_v", ascending=False).iloc[0],
+            minors.sort_values("_v").iloc[0])
+
+
 def _cheap_ir_occupants(df_all, team, app, n=2):
     """Lowest-value players sitting in the scarce IR slots -- releasing one is what
     unblocks parking an injured stud there."""
@@ -445,6 +470,26 @@ def main():
             print(f"   {mv:<22} {eff:<32} {cf:<5} {why}")
         print(f"\n   => 40-man {led['total']} -> {led['total'] - len(freed_by)}"
               f"   ({spots} spot(s) now available for adds)")
+
+    # OPTIONAL restructure: convert a dead farm slot into MLB bench capacity.
+    dem, worst = restructure_option(df_all, a.team, app)
+    if dem is not None and led["active"] + led["reserve"] >= SLOTS_ACTIVE + SLOTS_RESERVE:
+        best_val = max((f["_val"] for f in cand), default=0.0)
+        net = best_val - worst["_v"]
+        print(f"\n   OPTIONAL - free an MLB bench spot without cutting anyone useful:")
+        print(f"     DROP {worst['player']} (Minors, val {worst['_v']:.0f}, "
+              f"{int(worst['age'])}yo -- your weakest farm asset)")
+        print(f"     DEMOTE {dem['player']} to the vacated farm slot "
+              f"({int(dem['age'])}yo, dyn {dem['dynasty_score']:.0f}, "
+              f"{dem['estimated_games']:.0f} GP -- he's occupying an MLB bench spot "
+              f"while contributing nothing)")
+        print(f"     => MLB pool {led['active'] + led['reserve']} -> "
+              f"{led['active'] + led['reserve'] - 1}, one more add possible.")
+        print(f"     WORTH IT ONLY IF you spend that spot on VALUE, not a streamer: "
+              f"best available is {best_val:.0f} vs the {worst['_v']:.0f} you're cutting "
+              f"(net {net:+.0f}). Trading a real asset for a few points in a lost week "
+              f"is a loss.")
+        print(f"     Verify {dem['player']} is still minors-eligible in Fantrax first.")
 
     # ---- STEP 2/3: adds, split into a do-this tier and a think-about-it tier -------
     tier1, tier2 = [], []
