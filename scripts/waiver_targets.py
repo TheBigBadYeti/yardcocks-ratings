@@ -315,7 +315,7 @@ def main():
     if not os.path.exists(a.ratings):
         sys.exit(f"[waivers] ratings not found: {a.ratings}")
     # same overlay as /lineups, so we never re-recommend a player you already added
-    df_all = ol.apply_pending(pd.read_csv(a.ratings, encoding="utf-8"), a.team)
+    df_all = ol.apply_pending(ol.reconcile_roster(pd.read_csv(a.ratings, encoding="utf-8"), a.team), a.team)
     games, dates, week_end = ol.load_schedule(a.schedule)
     probables = ol.load_probables(a.probables)
     app = APPETITE[a.posture]
@@ -332,17 +332,21 @@ def main():
           f"{needs['week_end']} | lineup now {base_total:.0f} EWP ===")
 
     # ---- ROSTER LEDGER: what you can actually DO -------------------------------
+    # Active and Reserve share ONE pool of 26 MLB spots (18 lineup slots + 8 bench);
+    # only Active is separately capped at 18. Treating Reserve as its own hard 8 wrongly
+    # reported "OVER by 1" on a perfectly legal 16/10 split.
+    mlb_pool, mlb_cap = led["active"] + led["reserve"], SLOTS_ACTIVE + SLOTS_RESERVE
     print(f"\n--- ROSTER ({led['total']}/{ROSTER_TOTAL}) vs hard limits ---")
-    for label, have, cap in (("Active", led["active"], SLOTS_ACTIVE),
-                             ("Reserve", led["reserve"], SLOTS_RESERVE),
-                             ("Inj Res", led["ir"], SLOTS_IR),
+    print(f"   {'Active':<9} {led['active']:>2}/{SLOTS_ACTIVE:<3} "
+          + (f"{SLOTS_ACTIVE - led['active']} lineup slot(s) open"
+             if led["active"] < SLOTS_ACTIVE else "FULL"))
+    print(f"   {'Reserve':<9} {led['reserve']:>2}     bench")
+    print(f"   {'MLB pool':<9} {mlb_pool:>2}/{mlb_cap:<3} "
+          + ("FULL" if mlb_pool >= mlb_cap else f"{mlb_cap - mlb_pool} open"))
+    for label, have, cap in (("Inj Res", led["ir"], SLOTS_IR),
                              ("Minors", led["minors"], SLOTS_MINORS)):
-        if have < cap:
-            note = f"{cap - have} OPEN"
-        elif have == cap:
-            note = "FULL"
-        else:
-            note = f"OVER by {have - cap} (verify in Fantrax)"
+        note = (f"{cap - have} OPEN" if have < cap else "FULL" if have == cap
+                else f"OVER by {have - cap} (verify in Fantrax)")
         print(f"   {label:<9} {have:>2}/{cap:<3} {note}")
     print(f"   {'TOTAL':<9} {led['total']:>2}/{ROSTER_TOTAL:<3} "
           + ("FULL -- every add costs a drop" if led["total"] >= ROSTER_TOTAL else "room"))

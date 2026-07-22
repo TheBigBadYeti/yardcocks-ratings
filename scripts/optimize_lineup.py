@@ -189,6 +189,59 @@ def _numv(v):
         return 0.0
 
 
+TEAM_ROSTER = "data/raw/team_roster_real.csv"
+_TR_STATUS = {"act": "Active", "res": "Reserve", "ir": "Inj Res", "min": "Minors"}
+
+
+def load_team_roster_status(path=TEAM_ROSTER):
+    """norm_name -> slot status from the dedicated Team-Roster export.
+
+    WHY THIS OVERRIDES THE PLAYER EXPORT: the big rostered-player files carry their own
+    'Roster Status' column, but the two exports are pulled at different moments and
+    drift. That produced an impossible 11 players in 10 minor-league slots (Mike Sirota
+    was already recalled to Reserve). Fantrax enforces slot caps, so the dedicated
+    per-slot export is authoritative for OUR roster; the player export is not."""
+    if not os.path.exists(path):
+        return {}
+    out, hdr = {}, None
+    try:
+        with open(path, newline="", encoding="utf-8-sig") as fh:
+            for row in csv.reader(fh):
+                if not row:
+                    continue
+                if row[0] == "ID":
+                    hdr = row
+                    continue
+                if hdr and len(row) == len(hdr):
+                    d = dict(zip(hdr, row))
+                    st = _TR_STATUS.get(str(d.get("Status", "")).strip().lower())
+                    if st and d.get("Player"):
+                        out[norm_name(d["Player"])] = st
+    except Exception:
+        return {}
+    return out
+
+
+def reconcile_roster(df_all, team, verbose=True):
+    """Trust the Team-Roster export over the player export for our own slot labels."""
+    tr = load_team_roster_status()
+    if not tr:
+        return df_all
+    df = df_all.copy()
+    mine = df["owner_status"].astype(str).str.fullmatch(team, case=False, na=False)
+    keys = df["player"].astype(str).map(norm_name)
+    newst = keys.map(tr)
+    changed = mine & newst.notna() & (newst != df["roster_status"].astype(str))
+    if changed.any():
+        if verbose:
+            for _, r in df[changed].iterrows():
+                print(f"[roster] {r['player']}: player-export said "
+                      f"'{r['roster_status']}' -> Team-Roster export says "
+                      f"'{tr[norm_name(r['player'])]}' (authoritative)", file=sys.stderr)
+        df.loc[changed, "roster_status"] = newst[changed]
+    return df
+
+
 def apply_pending(df_all, team, verbose=True):
     """Fold in roster moves already made in Fantrax that the export hasn't caught up to
     (see scripts/pending_moves.py). Without this, /lineups optimizes a roster you no
@@ -417,7 +470,7 @@ def main():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     games, dates, week_end = load_schedule(a.schedule)
     probables = load_probables(a.probables)
-    df_all = apply_pending(pd.read_csv(a.ratings), a.team)
+    df_all = apply_pending(reconcile_roster(pd.read_csv(a.ratings), a.team), a.team)
     roster_count = int((df_all["owner_status"].astype(str)
                         .str.fullmatch(a.team, case=False, na=False)).sum())
     recency = load_recency()
