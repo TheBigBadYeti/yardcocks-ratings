@@ -365,16 +365,21 @@ def main():
     # its MARGINAL gain. Without this, four relievers each "worth +13" would all be
     # filling the same two empty slots and the plan would promise ~4x what it can
     # deliver. The loop stops on its own once nobody adds real points.
+    # Greedy on RISK-ADJUSTED gain, not raw gain: a +14.1 on a 5-appearance sample is
+    # worth less than a +13.0 on a full season. Without this the plan led with the
+    # shakiest name simply because its point estimate was highest.
+    RISK = {"HIGH": 1.0, "MED": 0.85, "LOW": 0.6}
     pool, cur, chosen = list(players), base_total, []
     ranked = sorted(short, key=lambda x: -x["_impact"])[:20]
-    while len(chosen) < min(a.n, MAX_CLAIMS_WEEK):
-        best, best_gain = None, 0.0
+    while len(chosen) < min(a.n + 2, MAX_CLAIMS_WEEK):
+        best, best_gain, best_adj = None, 0.0, 0.0
         for f in ranked:
             if any(f is c for c, _ in chosen):
                 continue
             g = lineup_total(pool + [f]) - cur
-            if g > best_gain:
-                best, best_gain = f, g
+            adj = g * RISK[move_confidence(f)[0]]
+            if adj > best_adj:
+                best, best_gain, best_adj = f, g, adj
         if best is None or best_gain <= 0.5:
             break
         chosen.append((best, best_gain))
@@ -382,73 +387,85 @@ def main():
         cur += best_gain
     helpers = chosen
 
-    # ---- ORDERED MOVE PLAN: dependencies first, then adds. Execute top-down. -------
-    print("\n=== RECOMMENDED MOVE PLAN (execute in order) ===")
-    step = 0
-    open_slots = max(0, ROSTER_TOTAL - led["total"])
-    ir_free = max(0, SLOTS_IR - led["ir"])
+    # ---- STEP 1: roster cleanup. TWO DIFFERENT RESOURCES, do not conflate them:
+    #   * a DROP frees a TOTAL-ROSTER spot (40-man) -- that is what an ADD consumes.
+    #   * an IR move frees an ACTIVE-LINEUP slot but the player still counts toward 40.
+    # Treating an IR park as add-capacity overcounted room and produced a plan that
+    # would have put the roster at 41-42.
     holds = [x for x in il if x["hold"]]
-
-    # Structural moves first: clearing IR is what unlocks parking an injured stud,
-    # which is the cheapest way to open an active slot (no useful player is cut).
+    ir_free = max(0, SLOTS_IR - led["ir"])
+    spots = max(0, ROSTER_TOTAL - led["total"])          # total-roster room for ADDS
+    cleanup, freed_by = [], []
     if holds and ir_free == 0:
         for name, val in _cheap_ir_occupants(df_all, a.team, app, len(holds)):
-            step += 1
-            print(f"\n {step}. DROP {name}  (currently on IR)          confidence: HIGH")
-            print(f"      WHY    : val {val:.0f} -- the least valuable player you own, "
-                  f"and he's occupying a scarce IR slot you need.")
-            print(f"      ENABLES: an IR slot for {holds[0]['player'] if holds else 'an injured hold'}.")
+            cleanup.append((f"DROP {name}", "-1 roster, frees IR slot",
+                            f"val {val:.0f}, least valuable player you own", "HIGH"))
             ir_free += 1
-            open_slots += 1
+            spots += 1
+            freed_by.append(name)
     for h in holds[:ir_free]:
-        step += 1
-        print(f"\n {step}. MOVE {h['player']} to IR                    confidence: HIGH")
-        print(f"      WHY    : MLB-IL but sitting in an active slot, so he scores 0 for "
-              f"you. He's a HOLD (win {h['win_now']:.0f}/dyn {h['dynasty']:.0f}) -- park "
-              f"him, don't cut him.")
-        print(f"      EFFECT : frees an active roster spot at no cost.")
-        open_slots += 1
+        cleanup.append((f"IR {h['player']}", "frees ACTIVE slot (roster same)",
+                        f"MLB-IL, scores 0. HOLD win {h['win_now']:.0f}", "HIGH"))
 
-    if not helpers:
-        print("\n   No available FA cracks your optimal 18 -- your startable core "
-              "already beats the wire. Spend claims on future value instead.")
-    claims, running = 0, base_total
+    print("\n=== STEP 1 - ROSTER CLEANUP (do first; uses no claims) ===")
+    if not cleanup:
+        print("   nothing to clear.")
+    else:
+        print(f"   {'MOVE':<22} {'EFFECT':<32} {'CONF':<5} WHY")
+        for mv, eff, why, cf in cleanup:
+            print(f"   {mv:<22} {eff:<32} {cf:<5} {why}")
+        print(f"\n   => 40-man {led['total']} -> {led['total'] - len(freed_by)}"
+              f"   ({spots} spot(s) now available for adds)")
+
+    # ---- STEP 2/3: adds, split into a do-this tier and a think-about-it tier -------
+    tier1, tier2 = [], []
+    running, spare = base_total, list(drops)
+    # Track openings as they get consumed: once the two empty RP slots are taken by
+    # earlier adds, a later arm is an UPGRADE over the weakest starter, not a fill.
+    open_left = Counter(s["eligible"] for s in needs["unfilled"])
     for f, gain in helpers:
-        if claims >= MAX_CLAIMS_WEEK:
-            break
-        step += 1
-        claims += 1
         lvl, cwhy = move_confidence(f)
-        fills = [e for e in unfilled_elig if fa_fits(f, e)]
-        why = (f"fills your empty {fills[0]} slot (0 pts there today)" if fills
-               else "outproduces your weakest startable at his slot")
-        extra = []
-        if f["_boost"] > 0.5:
-            extra.append(f"hot: {_f(f.get('recent_fpg'), 0):.0f} recent vs "
-                         f"{_f(f.get('season_fpg'), 0):.0f} season")
-        if keeper_quality(f):
-            extra.append(f"also a keeper ({int(_f(f.get('age'), 0))}yo, "
-                         f"fut {_f(f.get('dynasty'), 0):.0f})")
-        if ol.norm_name(f["player"]) in returning:
-            extra.append("returning from IL")
-        if open_slots > 0:
-            cost = f"uses one of the {open_slots} spot(s) you just freed -- no cut needed"
-            open_slots -= 1
+        fills = [e for e in open_left if open_left[e] > 0 and fa_fits(f, e)]
+        if fills:
+            open_left[fills[0]] -= 1
+            why = f"fills empty {fills[0]} slot"
         else:
-            cost = f"roster is full, so {drop_txt}"
-        print(f"\n {step}. ADD {f['player']}  ({f['team']} {f['pos']})"
-              f"        confidence: {lvl}")
-        print(f"      WHY    : {why}; {f['detail']}."
-              + ("  " + "; ".join(extra) + "." if extra else ""))
-        print(f"      LINEUP : {running:.0f} -> {running + gain:.0f} EWP "
-              f"(+{gain:.1f} MARGINAL, i.e. on top of the moves above)")
+            why = "upgrade over weakest"
+        if spots > 0:
+            last = freed_by[len(freed_by) - spots].split()[-1] if freed_by else "open"
+            cost, clean = f"free spot ({last})", True
+            spots -= 1
+        elif spare:
+            nm, v = spare[0][0].split()[-1], spare[0][1]
+            spare = spare[1:]
+            cost, clean = f"cut {nm} ({v:.0f})", False
+        else:
+            cost, clean = "needs a trade", False
+        row = (f, gain, lvl, why, cost, cwhy, running, running + gain)
+        (tier1 if (clean and lvl == "HIGH") else tier2).append(row)
         running += gain
-        print(f"      COST   : {cost}. Claim {claims} of {MAX_CLAIMS_WEEK}.")
-        if cwhy:
-            print(f"      CAVEAT : {'; '.join(cwhy)}.")
 
-    print("\n   Tell me which of these you actually execute and I'll record them, so "
-          "/lineups reflects the new roster before the next /refresh.")
+    def _table(rows, title, note):
+        print(f"\n=== {title} ===")
+        print(f"   {note}")
+        if not rows:
+            print("   (none)")
+            return
+        print(f"\n   {'ADD':<27} {'COST':<22} {'LINEUP':<17} {'CONF':<5} WHY")
+        for f, gain, lvl, why, cost, cwhy, r0, r1 in rows:
+            who = f"{f['player']} ({f['team']} {f['pos']})"
+            span = f"{r0:.0f}->{r1:.0f} (+{gain:.1f})"
+            print(f"   {who:<27} {cost:<22} {span:<17} {lvl:<5} {why}")
+            if cwhy:
+                print(f"   {'':<27} {'':<22} {'':<17} {'':<5} ^ {'; '.join(cwhy)}")
+
+    _table(tier1, "STEP 2 - DO THIS",
+           "High confidence AND the roster math already closes (uses a freed spot).")
+    _table(tier2, "STEP 3 - THINK ABOUT THESE",
+           "Each needs ANOTHER cut, or rests on a shakier projection. Optional.")
+
+    print("\n   Gains are MARGINAL (each on top of the moves above). Tell me which you "
+          "execute and I'll record them so /lineups matches your real roster.")
 
     # Future-value adds that do NOT help this week -- honest about the tradeoff.
     future = [f for f in short if f.get("_impact", 0) <= 0.5 and keeper_quality(f)]
