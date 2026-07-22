@@ -255,9 +255,24 @@ def compute_needs(df_all, games, dates, week_end, probables, team):
     return needs, started, players
 
 
-def drop_candidates(df_all, team, app, n, exclude):
+def unsettled_young(mine):
+    """Young players whose value the model hasn't actually resolved: a thin MLB sample
+    and/or no career baseline. Their dynasty_score is a low-information guess, not a
+    verdict -- and per the runbook's caveat 8 the asset model deliberately reads young
+    partial seasons LOW. Cutting one is the 'young keeper false-sell' the KEEP_DYNASTY
+    floor was meant to stop, except that floor only checks dynasty >= 60 and ignores
+    sample quality. Blaze Jordan is the live example: 23yo, 26 games, conf 0.58, no
+    career_baseline, no asset_value -- the model simply doesn't know yet."""
+    age = pd.to_numeric(mine.get("age"), errors="coerce")
+    conf = pd.to_numeric(mine.get("sample_confidence"), errors="coerce")
+    base = pd.to_numeric(mine.get("career_baseline"), errors="coerce")
+    return (age <= YOUNG + 1) & ((conf < 0.8) | base.isna())
+
+
+def drop_candidates(df_all, team, app, n, exclude, return_protected=False):
     """Lowest value-to-us non-keepers you can actually spare: excludes this week's
-    starters (you don't cut who you're starting), keepers, IL (you IR), and minors."""
+    starters (you don't cut who you're starting), keepers, IL (you IR), minors, and
+    young players whose value is still unsettled (see unsettled_young)."""
     mine = df_all[df_all["owner_status"].astype(str).str.fullmatch(team, case=False,
                                                                    na=False)].copy()
     rs = mine["roster_status"].astype(str).str.lower()
@@ -266,6 +281,14 @@ def drop_candidates(df_all, team, app, n, exclude):
     age = pd.to_numeric(mine.get("age"), errors="coerce")
     dyn = pd.to_numeric(mine.get("dynasty_score"), errors="coerce")
     wn = pd.to_numeric(mine.get("win_now_score"), errors="coerce").fillna(0)
+    unsettled = unsettled_young(mine)
+    protected = [(r["player"], int(_f(r.get("age"), 0)),
+                  _f(r.get("sample_confidence")), int(_f(r.get("dynasty_score"), 0)))
+                 for _, r in mine[unsettled].iterrows()]
+    if return_protected:
+        return protected
+    mine = mine[~unsettled]
+    age, dyn, wn = age[~unsettled], dyn[~unsettled], wn[~unsettled]
     keep = (age < VET) & (dyn >= KEEP_DYNASTY)
     pool = mine[~keep].copy()
     if pool.empty:
@@ -484,6 +507,15 @@ def main():
     print("\n=== STEP 4 - BENCH UPGRADES (same roster size, better asset) ===")
     print("   Neither player starts this week, so there's no lineup change -- this is a "
           "pure 1-for-1 value swap.")
+    prot = drop_candidates(df_all, a.team, app, 99,
+                           started | {x["player"] for x in il}, return_protected=True)
+    if prot:
+        print("\n   NOT offered as cuts -- young with unsettled value (thin sample or no "
+              "career baseline, so their score is a guess, not a verdict):")
+        for nm, ag, cf, dy in prot:
+            cfs = "n/a" if np.isnan(cf) else f"{cf:.2f}"
+            print(f"     {nm:<22} {ag}yo, conf {cfs}, dyn {dy} -- hold until the sample "
+                  f"settles")
     if not swaps:
         print("   (none -- nothing available beats your spare parts by a real margin)")
     else:
