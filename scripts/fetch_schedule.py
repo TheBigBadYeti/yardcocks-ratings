@@ -10,7 +10,9 @@ and the forward-value layer consume:
   data/schedule/probable_starts.csv
       one row per probable starter: starts_this_week + the dates
 
-DESKTOP-ONLY: the MLB Stats API is blocked (403) from the cloud VM, exactly like
+NETWORK: MLB does NOT block this -- GitHub Actions runners get HTTP 200. The 403 from
+Claude cloud VMs is that sandbox egress allowlist (package registries + GitHub only).
+.github/workflows/refresh-caches.yml refreshes this daily, exactly like
 fetch_recency.py. Run this on the desktop (open network), commit the caches, and
 the cloud/phone read them. Stdlib only - no extra deps.
 """

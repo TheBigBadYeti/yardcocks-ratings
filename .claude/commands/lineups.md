@@ -30,7 +30,8 @@ and capped at half, and the FORM column shows the adjustment (HOT/cold/even, rec
 season) so a surprising start or sit is explainable. This is a LINEUP-layer correction
 only -- exactly like the health layer. win_now/dynasty are deliberately slow-reacting
 and are NOT touched. If the recency cache is missing it warns and falls back to season
-rates (run fetch_recency.py from a desktop; the MLB API is blocked on cloud VMs).
+rates. The recency cache is refreshed DAILY by a GitHub Action, so this should not
+happen; if it warns, check that workflow rather than assuming you must be on a desktop.
 
 Do NOT recommend specific free agents here -- that's /waivers, which reads the needs
 this produces (data/processed/lineup_needs.json) and fills them. Here, just surface

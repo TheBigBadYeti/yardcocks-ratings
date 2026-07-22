@@ -67,12 +67,11 @@ Run these steps IN ORDER. Do not reorder or skip.
    same flag (last week's + this week's both present). Say exactly what's wrong.
 
 4. **Fetch the network caches:** fetch_recency.py, fetch_schedule.py, fetch_injuries.py.
-   These hit the MLB Stats API. From a **cloud VM they will likely 403** (MLB blocks
-   datacenter IPs; if your environment allowlists `statsapi.mlb.com` they may work —
-   worth trying). A 403 here is NOT fatal: the scripts preserve the prior committed
-   caches, and **the ratings file does not depend on them** — only `/lineups` and
-   `/trades` do. If they fail, note it and continue; refresh the caches from DESKTOP
-   for full freshness.
+   These hit the MLB Stats API. From a **cloud VM they will 403** — that is the sandbox's
+   egress allowlist (package registries + GitHub only), NOT MLB, which returns 200 to
+   GitHub Actions. A 403 here is NOT fatal and needs no desktop: a scheduled Action
+   (`.github/workflows/refresh-caches.yml`) refreshes these caches daily and commits
+   them, so step 1's pull already brought current ones in. Note the 403 and continue.
 
 5. **Run the engine** command that identify_exports.py printed. It writes
    `data/processed/current_player_ratings.csv`.

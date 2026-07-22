@@ -19,7 +19,8 @@ Age is computed from each player's birthDate against a ~July 1 baseball-age
 reference. backtest_cohort.py reads this and compares real population retention
 (washouts included) to the curve -- the test the survivor pool can't run.
 
-DESKTOP-ONLY: MLB API 403s in the cloud. Stdlib + pandas; imports the proven
+NETWORK: MLB 403s from a Claude cloud VM only due to that sandbox egress allowlist;
+MLB allows datacenter IPs (GitHub Actions gets 200). Stdlib + pandas; imports the proven
 converters from fetch_recency / fetch_career.
 """
 import argparse

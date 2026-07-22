@@ -12,8 +12,11 @@ WEEKLY PATTERN  (in order — each step feeds the next)
                 SIX files in TWO drops (cloud caps uploads at 5):
                   drop 1 = the 5 engine inputs (rostered H/P, FA H/P, Team-Roster)
                   drop 2 = Fantrax-Standings (drives /posture + trade appetite)
-                Run on the LAPTOP/desktop: the MLB API is blocked from cloud VMs, so
-                only an open-network machine can refresh recency/schedule/injuries.
+                Runs anywhere -- cloud, phone, or desktop. The MLB caches
+                (recency/schedule/injuries) are refreshed DAILY by a GitHub Action
+                (.github/workflows/refresh-caches.yml), so they're current no matter
+                where you refresh from. A cloud VM still can't fetch them itself (its
+                egress allowlist blocks general internet, not MLB) -- it doesn't need to.
   2. /posture   Sets the lens. Reads your ACTUAL record from the standings export.
                 /waivers and /trades both price off this — run it before them.
   3. /lineups   Optimal 18-man lineup (multi-position matching, 12-start cap) PLUS a
@@ -40,6 +43,7 @@ WHO WRITES WHAT
 
 ON THE ROAD
   Phone/cloud: /sync, then any decision command.
-  Refresh needs the laptop (MLB API is blocked from cloud VMs); a cloud /refresh still
-  publishes fresh RATINGS but leaves schedule/injury caches stale.
+  /refresh works from the cloud too -- a daily GitHub Action keeps the MLB caches fresh,
+  so cloud and desktop read identical data. Only note: a cloud session pushes to a
+  feature branch, so merge its PR (or tell it to push to main) before readers see it.
 ```

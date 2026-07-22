@@ -18,7 +18,8 @@ provides it; otherwise we estimate it as gamesStarted * QS_RATE_EST so a starter
 history isn't undervalued. (Approximate by design - the baseline is a relative
 asset signal, not a box score.)
 
-DESKTOP-ONLY: MLB API 403s in the cloud. Stdlib only; imports fetch_recency.
+NETWORK: MLB 403s from a Claude cloud VM only due to that sandbox egress allowlist;
+MLB allows datacenter IPs (GitHub Actions gets 200). Stdlib only; imports fetch_recency.
 """
 import argparse, csv, os, sys
 import pandas as pd
