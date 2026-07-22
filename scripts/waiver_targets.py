@@ -175,6 +175,27 @@ def _line(rec, extra=""):
             f"{rec['detail']:<20} EWP {rec['ewp']:>5.1f}  ({tag}){kq}{extra}")
 
 
+def move_confidence(f):
+    """HIGH / MED / LOW for an ADD, derived from real signals rather than vibes:
+    how well-sampled the player's rate is, how certain his playing time is, and how
+    big the measured gain is. Returns (level, [reasons])."""
+    score, why = 2, []
+    conf = _f(f.get("conf"))
+    if not np.isnan(conf):
+        if conf < 0.5:
+            score -= 2; why.append(f"thin sample (conf {conf:.2f})")
+        elif conf < 0.8:
+            score -= 1; why.append(f"moderate sample (conf {conf:.2f})")
+    lab = f.get("start_label")
+    if lab == "projected":
+        score -= 1; why.append("2nd start projected, not yet posted")
+    elif lab == "assumed":
+        score -= 1; why.append("start assumed from team schedule")
+    if f.get("_impact", 0) < 3:
+        score -= 1; why.append("marginal gain")
+    return ("HIGH" if score >= 2 else "MED" if score >= 1 else "LOW"), why
+
+
 def lineup_total(players):
     """Total EWP of the optimal lineup buildable from this pool."""
     hit = ol.optimal_hitters([p for p in players if p["role"] == "H"])
@@ -338,13 +359,65 @@ def main():
     drop_txt = (f"drop {drops[0][0]} (val {drops[0][1]:.0f}, lowest-value spare)"
                 if drops else "no easy cut -- free a spot by trade")
 
-    helpers = sorted([f for f in short if f["_impact"] > 0.5],
-                     key=lambda x: -x["_impact"])[:a.n]
-    print("\n--- MOVES THAT IMPROVE THIS WEEK'S LINEUP (measured, not asserted) ---")
+    # Adds are chosen GREEDILY and SEQUENTIALLY: after each pick, the optimizer is
+    # re-run with that player already on the roster, so the next candidate's number is
+    # its MARGINAL gain. Without this, four relievers each "worth +13" would all be
+    # filling the same two empty slots and the plan would promise ~4x what it can
+    # deliver. The loop stops on its own once nobody adds real points.
+    pool, cur, chosen = list(players), base_total, []
+    ranked = sorted(short, key=lambda x: -x["_impact"])[:20]
+    while len(chosen) < min(a.n, MAX_CLAIMS_WEEK):
+        best, best_gain = None, 0.0
+        for f in ranked:
+            if any(f is c for c, _ in chosen):
+                continue
+            g = lineup_total(pool + [f]) - cur
+            if g > best_gain:
+                best, best_gain = f, g
+        if best is None or best_gain <= 0.5:
+            break
+        chosen.append((best, best_gain))
+        pool.append(best)
+        cur += best_gain
+    helpers = chosen
+
+    # ---- ORDERED MOVE PLAN: dependencies first, then adds. Execute top-down. -------
+    print("\n=== RECOMMENDED MOVE PLAN (execute in order) ===")
+    step = 0
+    open_slots = max(0, ROSTER_TOTAL - led["total"])
+    ir_free = max(0, SLOTS_IR - led["ir"])
+    holds = [x for x in il if x["hold"]]
+
+    # Structural moves first: clearing IR is what unlocks parking an injured stud,
+    # which is the cheapest way to open an active slot (no useful player is cut).
+    if holds and ir_free == 0:
+        for name, val in _cheap_ir_occupants(df_all, a.team, app, len(holds)):
+            step += 1
+            print(f"\n {step}. DROP {name}  (currently on IR)          confidence: HIGH")
+            print(f"      WHY    : val {val:.0f} -- the least valuable player you own, "
+                  f"and he's occupying a scarce IR slot you need.")
+            print(f"      ENABLES: an IR slot for {holds[0]['player'] if holds else 'an injured hold'}.")
+            ir_free += 1
+            open_slots += 1
+    for h in holds[:ir_free]:
+        step += 1
+        print(f"\n {step}. MOVE {h['player']} to IR                    confidence: HIGH")
+        print(f"      WHY    : MLB-IL but sitting in an active slot, so he scores 0 for "
+              f"you. He's a HOLD (win {h['win_now']:.0f}/dyn {h['dynasty']:.0f}) -- park "
+              f"him, don't cut him.")
+        print(f"      EFFECT : frees an active roster spot at no cost.")
+        open_slots += 1
+
     if not helpers:
-        print("   None. No available FA cracks your optimal 18 -- your startable core "
+        print("\n   No available FA cracks your optimal 18 -- your startable core "
               "already beats the wire. Spend claims on future value instead.")
-    for f in helpers:
+    claims, running = 0, base_total
+    for f, gain in helpers:
+        if claims >= MAX_CLAIMS_WEEK:
+            break
+        step += 1
+        claims += 1
+        lvl, cwhy = move_confidence(f)
         fills = [e for e in unfilled_elig if fa_fits(f, e)]
         why = (f"fills your empty {fills[0]} slot (0 pts there today)" if fills
                else "outproduces your weakest startable at his slot")
@@ -357,17 +430,24 @@ def main():
                          f"fut {_f(f.get('dynasty'), 0):.0f})")
         if ol.norm_name(f["player"]) in returning:
             extra.append("returning from IL")
-        conf = _f(f.get("conf"))
-        if not np.isnan(conf) and conf < 0.6:
-            extra.append(f"THIN SAMPLE (conf {conf:.2f}) -- the projection is shaky, "
-                         f"verify before spending a claim")
-        print(f"\n   ADD {f['player']}  ({f['team']} {f['pos']})   <-  {drop_txt}")
-        print(f"      WHY   : {why}; {f['detail']}."
+        if open_slots > 0:
+            cost = f"uses one of the {open_slots} spot(s) you just freed -- no cut needed"
+            open_slots -= 1
+        else:
+            cost = f"roster is full, so {drop_txt}"
+        print(f"\n {step}. ADD {f['player']}  ({f['team']} {f['pos']})"
+              f"        confidence: {lvl}")
+        print(f"      WHY    : {why}; {f['detail']}."
               + ("  " + "; ".join(extra) + "." if extra else ""))
-        print(f"      LINEUP: {base_total:.0f} -> {base_total + f['_impact']:.0f} EWP "
-              f"(+{f['_impact']:.1f} this week)")
-        print(f"      COST  : roster is {led['total']}/{ROSTER_TOTAL}, so this needs the "
-              f"drop above. 1 of {MAX_CLAIMS_WEEK} weekly claims.")
+        print(f"      LINEUP : {running:.0f} -> {running + gain:.0f} EWP "
+              f"(+{gain:.1f} MARGINAL, i.e. on top of the moves above)")
+        running += gain
+        print(f"      COST   : {cost}. Claim {claims} of {MAX_CLAIMS_WEEK}.")
+        if cwhy:
+            print(f"      CAVEAT : {'; '.join(cwhy)}.")
+
+    print("\n   Tell me which of these you actually execute and I'll record them, so "
+          "/lineups reflects the new roster before the next /refresh.")
 
     # Future-value adds that do NOT help this week -- honest about the tradeoff.
     future = [f for f in short if f.get("_impact", 0) <= 0.5 and keeper_quality(f)]
