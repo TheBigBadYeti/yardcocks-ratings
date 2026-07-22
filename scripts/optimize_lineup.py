@@ -189,6 +189,35 @@ def _numv(v):
         return 0.0
 
 
+def apply_pending(df_all, team, verbose=True):
+    """Fold in roster moves already made in Fantrax that the export hasn't caught up to
+    (see scripts/pending_moves.py). Without this, /lineups optimizes a roster you no
+    longer have right after you act on /waivers. Cleared by /refresh."""
+    try:
+        import pending_moves
+    except Exception:
+        return df_all
+    d = pending_moves.load()
+    if not any(d.get(k) for k in ("add", "drop", "ir")):
+        return df_all
+    df = df_all.copy()
+    name = df["player"].astype(str)
+    mine = df["owner_status"].astype(str).str.fullmatch(team, case=False, na=False)
+    for p in d.get("drop", []):                  # released: no longer ours
+        df.loc[mine & (name == p), "owner_status"] = "FA"
+    for p in d.get("ir", []):                    # parked on IR: not startable
+        df.loc[mine & (name == p), "roster_status"] = "Inj Res"
+    for p in d.get("add", []):                   # claimed: ours and active
+        hit = name == p
+        df.loc[hit, "owner_status"] = team
+        df.loc[hit, "roster_status"] = "Active"
+    if verbose:
+        print(f"[pending] applied -- {pending_moves.describe(d)}", file=sys.stderr)
+        print("[pending] these are moves you made that the export hasn't caught up to; "
+              "/refresh clears them.", file=sys.stderr)
+    return df
+
+
 def build_pool(df_all, games, dates, week_end, probables, team, recency=None):
     """Return (players, misses, il_excluded) for one team's startable pool.
     il_excluded = players dropped by the health layer (MLB IL), each carrying their
@@ -385,7 +414,7 @@ def main():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     games, dates, week_end = load_schedule(a.schedule)
     probables = load_probables(a.probables)
-    df_all = pd.read_csv(a.ratings)
+    df_all = apply_pending(pd.read_csv(a.ratings), a.team)
     roster_count = int((df_all["owner_status"].astype(str)
                         .str.fullmatch(a.team, case=False, na=False)).sum())
     recency = load_recency()

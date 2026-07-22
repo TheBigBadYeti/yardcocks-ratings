@@ -289,7 +289,8 @@ def main():
 
     if not os.path.exists(a.ratings):
         sys.exit(f"[waivers] ratings not found: {a.ratings}")
-    df_all = pd.read_csv(a.ratings, encoding="utf-8")
+    # same overlay as /lineups, so we never re-recommend a player you already added
+    df_all = ol.apply_pending(pd.read_csv(a.ratings, encoding="utf-8"), a.team)
     games, dates, week_end = ol.load_schedule(a.schedule)
     probables = ol.load_probables(a.probables)
     app = APPETITE[a.posture]

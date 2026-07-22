@@ -26,9 +26,18 @@ Show me what it prints:
   honestly: each costs a drop for zero present points.
 - RETURNING FROM INJURY, and DROP CANDIDATES.
 
+AFTER I ACT: when I tell you which moves I actually made in Fantrax, record each one --
+  python scripts/pending_moves.py add|drop|ir "<player>"
+That overlay makes /lineups and /waivers agree with my real roster immediately, instead
+of optimizing a team I no longer have. The export won't show the moves until the next
+/refresh, which clears the overlay. Record ONLY what I confirm I did -- never what was
+merely recommended.
+
 When presenting:
 - Lead with the roster blockers -- a recommendation you can't legally execute is worse
   than none. If IR is full, say that before naming any add.
+- The plan is ORDERED with dependencies first, and each add's gain is MARGINAL (on top
+  of the moves above it), not standalone -- present it that way.
 - Give the MEASURED lineup delta for each move. Never say a player "would help"
   without the number.
 - Flag THIN SAMPLE adds as gambles, not recommendations.

@@ -86,12 +86,14 @@ Run these steps IN ORDER. Do not reorder or skip.
 
 7. **Snapshot + publish** (only if step 6 passed):
    ```
+   python3 scripts/pending_moves.py clear         # fresh exports ARE reality now, so
+                                                  # a stale overlay would double-count
    python3 scripts/snapshot.py --label weekly      # writes data/snapshots/ + manifest
    # If it refuses because today's snapshot already exists, this is a SAME-DAY RERUN.
    # Re-run with --supersede so the dated snapshot matches what you're publishing --
    # otherwise the historical record keeps the older run's numbers. Say that you did.
    git add data/raw/ data/processed/current_player_ratings.csv data/snapshots/ \
-           data/recency/ data/schedule/ data/standings/ \
+           data/recency/ data/schedule/ data/standings/ data/pending/ \
            data/injuries/il_status.csv data/injuries/returning.csv
    git commit -m "data refresh YYYY-MM-DD"          # today's real date
    git push origin main
