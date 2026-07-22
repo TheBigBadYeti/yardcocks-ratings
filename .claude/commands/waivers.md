@@ -22,6 +22,11 @@ Show me what it prints:
            so "+13.0 EWP" is computed, not asserted. A player who wouldn't crack the
            18 shows no gain and is not recommended as a lineup help.
     COST   the drop it forces at 40/40, and the weekly claim it spends.
+- STEP 4 BENCH UPGRADES -- straight 1-for-1 value swaps: cut a dead bench spot, add a
+  better asset. Neither player starts, so lineup-impact scoring misses these entirely,
+  but they cost no roster spot and no lineup points. In a rebuild these usually matter
+  MORE than the streaming above -- a young asset compounds, a streamed reliever in a
+  lost week does not. Say so when the posture is rebuild.
 - FUTURE-VALUE ADDS -- players who will NOT help this week, shown separately and
   honestly: each costs a drop for zero present points.
 - RETURNING FROM INJURY, and DROP CANDIDATES.

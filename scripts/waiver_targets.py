@@ -53,6 +53,8 @@ DROP_CEILING = 60                      # above this value-to-us a player is a tr
                                        # asset, not a cut -- never a drop candidate
 RETURN_FLOOR = 50                      # a returning FA must clear this (win_now or
                                        # dynasty) to be worth grabbing off waivers
+BENCH_UPGRADE_MIN = 10                 # value margin before swapping a bench spot is
+                                       # worth the claim (below this it's churn)
 LABEL_RANK = {"confirmed": 0, "projected": 1, "assumed": 2}
 
 
@@ -463,6 +465,39 @@ def main():
            "High confidence AND the roster math already closes (uses a freed spot).")
     _table(tier2, "STEP 3 - THINK ABOUT THESE",
            "Each needs ANOTHER cut, or rests on a shakier projection. Optional.")
+
+    # ---- STEP 4: BENCH UPGRADES -- swap a dead bench spot for a better asset.
+    # These change NOTHING this week (neither player starts), so lineup-impact scoring
+    # misses them entirely -- but they're a straight 1-for-1 value gain at no roster
+    # cost. For a rebuilder sitting at 3-12 this is usually the most valuable section
+    # on the page: a young asset compounds, a streamed reliever in a lost week doesn't.
+    taken = {f["player"] for f, _ in helpers}
+    avail = [f for f in sorted(cand, key=lambda x: -x["_val"])
+             if f["player"] not in taken and has_team(f)]
+    swaps = []
+    for nm, v, age, dyn in drops:
+        for f in avail:
+            if f["_val"] - v >= BENCH_UPGRADE_MIN:
+                swaps.append((nm, v, age, dyn, f))
+                avail.remove(f)
+                break
+    print("\n=== STEP 4 - BENCH UPGRADES (same roster size, better asset) ===")
+    print("   Neither player starts this week, so there's no lineup change -- this is a "
+          "pure 1-for-1 value swap.")
+    if not swaps:
+        print("   (none -- nothing available beats your spare parts by a real margin)")
+    else:
+        print(f"\n   {'CUT':<24} {'ADD':<26} {'VALUE':<8} WHY")
+        for nm, v, age, dyn, f in swaps[:a.n]:
+            cut = f"{nm} ({v:.0f})"
+            add = f"{f['player']} ({f['_val']:.0f})"
+            gain = f"+{f['_val'] - v:.0f}"
+            why = (f"{int(_f(f.get('age'), 0))}yo/fut {_f(f.get('dynasty'), 0):.0f}"
+                   f"  vs  {age}yo/dyn {dyn}")
+            print(f"   {cut:<24} {add:<26} {gain:<8} {why}")
+        if a.posture == "rebuild":
+            print("\n   You're 3-12. These compound; the streaming above does not. If you "
+                  "only make a couple of moves this week, make them these.")
 
     print("\n   Gains are MARGINAL (each on top of the moves above). Tell me which you "
           "execute and I'll record them so /lineups matches your real roster.")
