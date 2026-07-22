@@ -73,13 +73,16 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 676106,Emerson Hancock,SEA,1,2026-07-22
 663903,Brady Singer,CIN,1,2026-07-22
 672282,Reid Detmers,LAA,1,2026-07-22
-700241,Michael McGreevy,STL,1,2026-07-22
+690928,Hunter Dobbins,STL,1,2026-07-22
 677944,Slade Cecconi,CLE,1,2026-07-22
 641927,Bailey Ober,MIN,1,2026-07-22
 605400,Aaron Nola,PHI,1,2026-07-22
 641778,Eric Lauer,LAD,1,2026-07-22
+680755,Braydon Fisher,TOR,1,2026-07-22
 643377,Griffin Jax,TB,1,2026-07-22
+527048,Martín Pérez,ATL,1,2026-07-22
 650633,Michael King,SD,1,2026-07-22
+641302,Tyler Alexander,TEX,1,2026-07-22
 641743,Anthony Kay,CWS,1,2026-07-22
 607067,Colin Rea,CHC,1,2026-07-22
 672456,Keider Montero,DET,1,2026-07-22
@@ -91,6 +94,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 671737,Taj Bradley,MIN,1,2026-07-23
 669456,Shane Bieber,TOR,1,2026-07-23
 693855,Ian Seymour,TB,1,2026-07-23
+700241,Michael McGreevy,STL,1,2026-07-23
 675660,Shane Drohan,MIL,1,2026-07-24
 676282,Joey Cantillo,CLE,1,2026-07-24
 695076,Rhett Lowder,CIN,1,2026-07-24
