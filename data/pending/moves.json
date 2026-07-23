@@ -1,19 +1,6 @@
 {
   "updated": "2026-07-22",
-  "add": [
-    "Brent Headrick",
-    "Tyron Guerrero",
-    "Caleb Durbin",
-    "Nolan Schanuel"
-  ],
-  "drop": [
-    "Tony Santillan",
-    "Edwin Uceta",
-    "Mitch Keller",
-    "Nolan Gorman"
-  ],
-  "ir": [
-    "Max Meyer",
-    "Matt Chapman"
-  ]
+  "add": [],
+  "drop": [],
+  "ir": []
 }
