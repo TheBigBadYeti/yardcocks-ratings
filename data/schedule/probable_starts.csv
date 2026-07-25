@@ -5,6 +5,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 677952,Braxton Ashcraft,PIT,2,2026-07-20;2026-07-26
 656302,Dylan Cease,TOR,2,2026-07-20;2026-07-25
 607259,Nick Martinez,TB,2,2026-07-20;2026-07-25
+669358,Shane Baz,BAL,2,2026-07-20;2026-07-26
 650911,Cristopher Sánchez,PHI,2,2026-07-20;2026-07-26
 686218,Emmet Sheehan,LAD,2,2026-07-20;2026-07-26
 693821,Bryce Elder,ATL,2,2026-07-20;2026-07-25
@@ -32,7 +33,6 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 687223,Carson Palmquist,WSH,2,2026-07-21;2026-07-24
 684442,Kohl Drake,AZ,2,2026-07-21;2026-07-26
 801139,Payton Tolle,BOS,1,2026-07-20
-669358,Shane Baz,BAL,1,2026-07-20
 686790,Trevor McDonald,SF,1,2026-07-20
 656427,Jack Flaherty,DET,1,2026-07-20
 674841,Andrew Alvarez,WSH,1,2026-07-20
@@ -108,11 +108,13 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 593958,Eduardo Rodriguez,AZ,1,2026-07-24
 666200,Jesús Luzardo,PHI,1,2026-07-24
 693645,Cam Schlittler,NYY,1,2026-07-24
+669432,Trevor Rogers,BAL,1,2026-07-24
 656550,Grant Holmes,ATL,1,2026-07-24
 640455,Sean Manaea,NYM,1,2026-07-24
 808963,Roki Sasaki,LAD,1,2026-07-24
 663556,Shane McClanahan,TB,1,2026-07-24
 676282,Joey Cantillo,CLE,1,2026-07-24
+687473,Ryan Gusto,MIA,1,2026-07-24
 608566,Germán Márquez,SD,1,2026-07-24
 663776,Patrick Sandoval,BOS,1,2026-07-24
 702056,Trey Yesavage,TOR,1,2026-07-24
@@ -134,7 +136,8 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 691587,Eury Pérez,MIA,1,2026-07-25
 694973,Paul Skenes,PIT,1,2026-07-25
 684007,Shota Imanaga,CHC,1,2026-07-25
-669432,Trevor Rogers,BAL,1,2026-07-25
+687064,Brandon Young,BAL,1,2026-07-25
+686930,Mason Barnett,ATH,1,2026-07-25
 680732,Sean Burke,CWS,1,2026-07-25
 686613,Hunter Brown,HOU,1,2026-07-25
 688107,Robert Gasser,MIL,1,2026-07-25
@@ -146,6 +149,5 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 543135,Nathan Eovaldi,TEX,1,2026-07-25
 693433,Bryan Woo,SEA,1,2026-07-25
 571945,Miles Mikolas,WSH,1,2026-07-26
-687064,Brandon Young,BAL,1,2026-07-26
 669302,Logan Gilbert,SEA,1,2026-07-26
 701542,Will Warren,NYY,1,2026-07-26

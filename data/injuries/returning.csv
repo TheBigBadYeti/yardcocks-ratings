@@ -8,7 +8,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 701791,Caden Vire,caden vire,BOS,rehab,RA,Rehab Assignment
 703341,Candido Cuevas,candido cuevas,NYM,rehab,RA,Rehab Assignment
 804544,Carson Pierce,carson pierce,TOR,rehab,RA,Rehab Assignment
-695406,Case Williams,case williams,COL,rehab,RA,Rehab Assignment
 691793,Charlie Saum,charlie saum,TOR,rehab,RA,Rehab Assignment
 702318,Chris Campos,chris campos,LAD,rehab,RA,Rehab Assignment
 701808,Cody Morse,cody morse,LAD,rehab,RA,Rehab Assignment
@@ -27,12 +26,12 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 700255,Jacob Steinmetz,jacob steinmetz,AZ,rehab,RA,Rehab Assignment
 691922,Javier Rivas,javier rivas,PIT,rehab,RA,Rehab Assignment
 701464,Joe Miller,joe miller,DET,rehab,RA,Rehab Assignment
+701811,John Spikerman,john spikerman,PHI,rehab,RA,Rehab Assignment
 800434,Jose Alpuria,jose alpuria,AZ,rehab,RA,Rehab Assignment
 693725,Juan Nuñez,juan nunez,BAL,rehab,RA,Rehab Assignment
 676831,Kodi Whitley,kodi whitley,TB,rehab,RA,Rehab Assignment
 681673,Kohl Franklin,kohl franklin,CHC,rehab,RA,Rehab Assignment
 686952,Kyle Dernedde,kyle dernedde,CLE,rehab,RA,Rehab Assignment
-816102,Landon Harmon,landon harmon,WSH,rehab,RA,Rehab Assignment
 683091,Logan Tanner,logan tanner,CIN,rehab,RA,Rehab Assignment
 806981,Luis Almeyda,luis almeyda,BAL,rehab,RA,Rehab Assignment
 808153,Luis Merejo,luis merejo,CLE,rehab,RA,Rehab Assignment
@@ -48,7 +47,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 700358,Narbe Cruz,narbe cruz,HOU,rehab,RA,Rehab Assignment
 805801,Nazzan Zanetello,nazzan zanetello,BOS,rehab,RA,Rehab Assignment
 688902,Nick Pinto,nick pinto,CWS,rehab,RA,Rehab Assignment
-703639,Nico Perez,nico perez,LAD,rehab,RA,Rehab Assignment
 699257,Owen Woodward,owen woodward,NYM,rehab,RA,Rehab Assignment
 678061,Ray Kerr,ray kerr,ATL,rehab,RA,Rehab Assignment
 813869,Ryan Degges,ryan degges,CLE,rehab,RA,Rehab Assignment
@@ -60,4 +58,3 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 686579,Wes Burton,wes burton,CLE,rehab,RA,Rehab Assignment
 695770,Wes Kath,wes kath,CWS,rehab,RA,Rehab Assignment
 703151,William Bergolla Jr.,william bergolla jr,CWS,rehab,RA,Rehab Assignment
-823226,Zach Harris,zach harris,COL,rehab,RA,Rehab Assignment
