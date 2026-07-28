@@ -495,7 +495,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 825247,Harlin Naut,harlin naut,BAL,full-season,ILF,Injured - Full Season
 808339,Harold Gonzalez,harold gonzalez,LAD,60-day,D60,Injured 60-Day
 664056,Harrison Bader,harrison bader,SF,10-day,D10,Injured 10-Day
-801653,Harrison Kreiling,harrison kreiling,SEA,60-day,D60,Injured 60-Day
 702025,Harry Genth,harry genth,MIN,7-day,D7,Injured 7-Day
 806185,Hayden Birdsong,hayden birdsong,SF,60-day,D60,Injured 60-Day
 702259,Hayden Murphy,hayden murphy,AZ,60-day,D60,Injured 60-Day
@@ -878,7 +877,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 827625,Michael Carpenter,michael carpenter,MIN,7-day,D7,Injured 7-Day
 833199,Michael De La Cruz,michael de la cruz,TOR,60-day,D60,Injured 60-Day
 680737,Michael Helman,michael helman,TEX,60-day,D60,Injured 60-Day
-669419,Michael Hobbs,michael hobbs,SEA,60-day,D60,Injured 60-Day
 824765,Michael Martinez,michael martinez,ATL,7-day,D7,Injured 7-Day
 695602,Michael Massey,michael massey,DET,60-day,D60,Injured 60-Day
 674681,Michael Plassmeyer,michael plassmeyer,SEA,7-day,D7,Injured 7-Day
@@ -927,7 +925,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 805311,Nick Sando,nick sando,CIN,full-season,ILF,Injured - Full Season
 689901,Nico Zeglin,nico zeglin,HOU,7-day,D7,Injured 7-Day
 830474,Nicolas Vergara,nicolas vergara,TOR,60-day,D60,Injured 60-Day
-827417,Nieves Izaguirre,nieves izaguirre,PHI,7-day,D7,Injured 7-Day
 688629,Noah Dean,noah dean,WSH,7-day,D7,Injured 7-Day
 815125,Noah Ruen,noah ruen,LAD,full-season,ILF,Injured - Full Season
 800611,Noble Meyer,noble meyer,MIA,7-day,D7,Injured 7-Day
