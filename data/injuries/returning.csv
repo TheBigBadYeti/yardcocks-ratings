@@ -1,41 +1,36 @@
 mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 703060,Alejandro Urias,alejandro urias,NYM,rehab,RA,Rehab Assignment
-811083,Andrew Tess,andrew tess,BAL,rehab,RA,Rehab Assignment
 806967,Brailer Guerrero,brailer guerrero,TB,rehab,RA,Rehab Assignment
 702255,Brandon Barriera,brandon barriera,TOR,rehab,RA,Rehab Assignment
 678899,Brayan Castillo,brayan castillo,COL,rehab,RA,Rehab Assignment
 828419,Brayden Heidel,brayden heidel,TOR,rehab,RA,Rehab Assignment
 701791,Caden Vire,caden vire,BOS,rehab,RA,Rehab Assignment
 703341,Candido Cuevas,candido cuevas,NYM,rehab,RA,Rehab Assignment
-804544,Carson Pierce,carson pierce,TOR,rehab,RA,Rehab Assignment
-691793,Charlie Saum,charlie saum,TOR,rehab,RA,Rehab Assignment
+701831,Carson DeMartini,carson demartini,PHI,rehab,RA,Rehab Assignment
 702318,Chris Campos,chris campos,LAD,rehab,RA,Rehab Assignment
 695573,Cole Mathis,cole mathis,NYM,rehab,RA,Rehab Assignment
 671117,Darren Baker,darren baker,CWS,rehab,RA,Rehab Assignment
 683494,Euribiel Angeles,euribiel angeles,ATH,rehab,RA,Rehab Assignment
-702686,Everett Cooper III,everett cooper iii,WSH,rehab,RA,Rehab Assignment
-685712,Geovanny Planchart,geovanny planchart,TOR,rehab,RA,Rehab Assignment
-695530,Gio Cueto,gio cueto,LAD,rehab,RA,Rehab Assignment
 809100,Ixan Henderson,ixan henderson,STL,rehab,RA,Rehab Assignment
-813922,Jack Lines,jack lines,TB,rehab,RA,Rehab Assignment
+691789,Izaac Pacheco,izaac pacheco,DET,rehab,RA,Rehab Assignment
 815096,Jackson Appel,jackson appel,CWS,rehab,RA,Rehab Assignment
 702544,Jacob Reimer,jacob reimer,NYM,rehab,RA,Rehab Assignment
 700255,Jacob Steinmetz,jacob steinmetz,AZ,rehab,RA,Rehab Assignment
-691922,Javier Rivas,javier rivas,PIT,rehab,RA,Rehab Assignment
 701464,Joe Miller,joe miller,DET,rehab,RA,Rehab Assignment
 701811,John Spikerman,john spikerman,PHI,rehab,RA,Rehab Assignment
 660896,Jorge Alcala,jorge alcala,TOR,rehab,RA,Rehab Assignment
 800434,Jose Alpuria,jose alpuria,AZ,rehab,RA,Rehab Assignment
 693725,Juan Nuñez,juan nunez,BAL,rehab,RA,Rehab Assignment
+669234,Justyn-Henry Malloy,justyn-henry malloy,TB,rehab,RA,Rehab Assignment
 676831,Kodi Whitley,kodi whitley,TB,rehab,RA,Rehab Assignment
 681673,Kohl Franklin,kohl franklin,CHC,rehab,RA,Rehab Assignment
 686952,Kyle Dernedde,kyle dernedde,CLE,rehab,RA,Rehab Assignment
 683091,Logan Tanner,logan tanner,CIN,rehab,RA,Rehab Assignment
+692294,Luis Gutierrez,luis gutierrez,SD,rehab,RA,Rehab Assignment
 808153,Luis Merejo,luis merejo,CLE,rehab,RA,Rehab Assignment
 803183,Luke Fox,luke fox,LAD,rehab,RA,Rehab Assignment
 695705,Luke Holman,luke holman,CIN,rehab,RA,Rehab Assignment
 820827,Luke Sinnard,luke sinnard,ATL,rehab,RA,Rehab Assignment
-672380,Marco Jimenez,marco jimenez,DET,rehab,RA,Rehab Assignment
 804614,Marco Vargas,marco vargas,NYM,rehab,RA,Rehab Assignment
 702600,Matt Klein,matt klein,COL,rehab,RA,Rehab Assignment
 668974,Maverick Handley,maverick handley,ATL,rehab,RA,Rehab Assignment
@@ -43,8 +38,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 700358,Narbe Cruz,narbe cruz,HOU,rehab,RA,Rehab Assignment
 699257,Owen Woodward,owen woodward,NYM,rehab,RA,Rehab Assignment
 678061,Ray Kerr,ray kerr,ATL,rehab,RA,Rehab Assignment
-828173,Slater de Brun,slater de brun,TB,rehab,RA,Rehab Assignment
-828685,Taitn Gray,taitn gray,TB,rehab,RA,Rehab Assignment
-814532,Teddy Sharkey,teddy sharkey,BAL,rehab,RA,Rehab Assignment
+669740,Travis MacGregor,travis macgregor,NYY,rehab,RA,Rehab Assignment
 686579,Wes Burton,wes burton,CLE,rehab,RA,Rehab Assignment
 703151,William Bergolla Jr.,william bergolla jr,CWS,rehab,RA,Rehab Assignment
