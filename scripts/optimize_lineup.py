@@ -271,10 +271,20 @@ def apply_pending(df_all, team, verbose=True):
     return df
 
 
+def load_minors_eligible():
+    try:
+        from fetch_minors_eligibility import load_eligible
+        return load_eligible()
+    except Exception:
+        return {}
+
+
 def build_pool(df_all, games, dates, week_end, probables, team, recency=None):
-    """Return (players, misses, il_excluded) for one team's startable pool.
-    il_excluded = players dropped by the health layer (MLB IL), each carrying their
-    asset value + a HOLD flag so a stud (Meyer) reads as 'IR and hold', not 'replace'."""
+    """Return (players, misses, il_excluded, optioned) for one team's startable pool.
+    il_excluded = players dropped by the health layer (MLB IL).
+    optioned = players Fantrax still has Active/Reserve but who are CURRENTLY on a MiLB
+    team -- they won't accrue MLB stats this week, so starting one is a phantom start
+    (this is the Zebby-Matthews-in-AAA bug). Excluded like the IL layer, announced."""
     from health import apply_health
     df = df_all[df_all["owner_status"].astype(str).str.fullmatch(team, case=False, na=False)]
     df = df[df["roster_status"].astype(str).str.lower().isin(ELIGIBLE_STATUS)].copy()
@@ -286,13 +296,20 @@ def build_pool(df_all, games, dates, week_end, probables, team, recency=None):
                    for _, r in df[df["health_excluded"]].iterrows()]
     df = df[~df["health_excluded"]].copy()
 
+    elig = load_minors_eligible()
+    df["_optioned"] = df["player"].map(
+        lambda p: bool(elig.get(p, {}).get("eligible") is True))
+    optioned = [{"player": r["player"], "level": elig.get(r["player"], {}).get("level", "?")}
+                for _, r in df[df["_optioned"]].iterrows()]
+    df = df[~df["_optioned"]].copy()
+
     players, misses = [], []
     for _, r in df.iterrows():
         rec, ok = make_rec(r, games, dates, week_end, probables, recency)
         if not ok:
             misses.append((r["player"], r.get("team", "")))
         players.append(rec)
-    return players, misses, il_excluded
+    return players, misses, il_excluded, optioned
 
 
 # ------------------------------------------------------------------ assignment
@@ -425,9 +442,21 @@ def roster_view(df_all, team, players, started, il_lag):
     n_res = int((rs == "reserve").sum())
     inj = kipp[rs.str.contains("inj", na=False)]
     minors = kipp[rs.str.contains("minor", na=False)]
+    elig = load_minors_eligible()
 
     print(f"\n=== FULL ROSTER ({len(kipp)})  -  Active {n_act} · Reserve {n_res} · "
           f"Inj Res {len(inj)} · Minors {len(minors)}   (ELIG = Fantrax-eligible slots) ===")
+
+    # Fantrax Active/Reserve but currently on a MiLB team -> optioned; excluded from the
+    # lineup because they won't accrue MLB stats. Show them so they don't vanish.
+    opt = kipp[rs.str.contains("active|reserve", na=False)
+               & kipp["player"].map(lambda p: bool(elig.get(p, {}).get("eligible") is True))]
+    if len(opt):
+        print("OPTIONED (Active/Reserve on Fantrax but currently in the minors -- not "
+              "startable; demote to a Minors slot to free the MLB spot):")
+        for _, r in opt.iterrows():
+            print(f"   {r['player']:<22} {str(r.get('position','')):<9} "
+                  f"in {elig.get(r['player'], {}).get('level','?')}")
 
     bench = sorted([p for p in players if p["player"] not in started],
                    key=lambda x: -x["ewp"])
@@ -478,8 +507,13 @@ def main():
         print("[lineup] WARNING: no recency cache -- projections fall back to season "
               "rates, so cold/hot streaks and injury-shortened samples won't be "
               "corrected. Run fetch_recency.py from a desktop.", file=sys.stderr)
-    players, misses, il_excluded = build_pool(df_all, games, dates, week_end,
-                                              probables, a.team, recency)
+    players, misses, il_excluded, optioned = build_pool(df_all, games, dates, week_end,
+                                                        probables, a.team, recency)
+    if optioned:
+        print("\n[optioned] Active/Reserve on Fantrax but CURRENTLY IN THE MINORS -- "
+              "excluded (they won't accrue MLB stats this week):", file=sys.stderr)
+        for o in optioned:
+            print(f"    - {o['player']} ({o['level']})", file=sys.stderr)
 
     hitters = [p for p in players if p["role"] == "H"]
     hit_lineup = optimal_hitters(hitters)

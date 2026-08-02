@@ -227,10 +227,14 @@ def restructure_option(df_all, team, app):
     k["_v"] = app * k["win_now_score"].fillna(0) + (1 - app) * k["dynasty_score"].fillna(0)
     rs = k["roster_status"].astype(str).str.lower()
 
-    # demotable = on the MLB roster, young, and hasn't actually played (so he's very
-    # likely still minors-eligible and is contributing nothing where he sits)
-    dem = k[rs.str.contains("reserve|active", na=False)
-            & (k["estimated_games"].fillna(0) < 5) & (k["age"] <= YOUNG + 1)]
+    # demotable = occupying an MLB 26-pool slot (Active/Reserve) but ACTUALLY minors-
+    # eligible right now (currently on a MiLB team, per fetch_minors_eligibility). No more
+    # guessing from games played -- this is the real Fantrax rule. Relocate your best
+    # such stashed prospect into a farm slot vacated by your weakest actual minor leaguer.
+    elig = ol.load_minors_eligible()
+    def is_elig(p):
+        return elig.get(p, {}).get("eligible") is True
+    dem = k[rs.str.contains("reserve|active", na=False) & k["player"].map(is_elig)]
     minors = k[rs.str.contains("minor", na=False)]
     if dem.empty or minors.empty:
         return None, None
@@ -268,7 +272,7 @@ def roster_ledger(df_all, team):
 
 
 def compute_needs(df_all, games, dates, week_end, probables, team):
-    players, _m, il = ol.build_pool(df_all, games, dates, week_end, probables, team)
+    players, _m, il, _opt = ol.build_pool(df_all, games, dates, week_end, probables, team)
     hit_lineup = ol.optimal_hitters([p for p in players if p["role"] == "H"])
     sp_lineup, rp_lineup, _ = ol.assign_pitchers(players)
     started = ({r["player"] for _, r in hit_lineup if r}
@@ -470,9 +474,10 @@ def main():
                         f"weakest farm asset (val {worst['_v']:.0f}, "
                         f"{int(worst['age'])}yo); farm stays full at {SLOTS_MINORS}",
                         "HIGH"))
+        lvl = ol.load_minors_eligible().get(dem["player"], {}).get("level", "the minors")
         cleanup.append((f"DEMOTE {dem['player']}", "frees an MLB BENCH spot",
-                        f"{int(dem['estimated_games'])} GP -- reserve is for MLB "
-                        f"contributors, not prospects", "HIGH"))
+                        f"currently in {lvl} -- minors-eligible, so free the MLB spot",
+                        "HIGH"))
         spots += 1
         freed_by.append(worst["player"])
 

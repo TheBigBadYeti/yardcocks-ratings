@@ -57,12 +57,15 @@ jobs:
           python scripts/fetch_recency.py
           python scripts/fetch_schedule.py
           python scripts/fetch_injuries.py
+          # minors eligibility (who's currently on a real MiLB team) -- volatile, needs
+          # the current_player_ratings.csv on main to know the managed roster
+          python scripts/fetch_minors_eligibility.py || echo "[minors] fetch failed, keeping prior"
 
       - name: Commit if changed
         run: |
           git config user.name  "yardcocks-cache-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/recency/ data/schedule/ \
+          git add data/recency/ data/schedule/ data/roster/minors_eligible.csv \
                   data/injuries/il_status.csv data/injuries/returning.csv
           if git diff --cached --quiet; then
             echo "No cache changes -- nothing to commit."

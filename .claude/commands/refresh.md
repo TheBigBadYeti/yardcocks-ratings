@@ -66,7 +66,8 @@ Run these steps IN ORDER. Do not reorder or skip.
    rostered-pitchers, fa-hitters, fa-pitchers) is missing, OR if two files map to the
    same flag (last week's + this week's both present). Say exactly what's wrong.
 
-4. **Fetch the network caches:** fetch_recency.py, fetch_schedule.py, fetch_injuries.py.
+4. **Fetch the network caches:** fetch_recency.py, fetch_schedule.py, fetch_injuries.py,
+   fetch_minors_eligibility.py (who's currently on a real MiLB team).
    These hit the MLB Stats API. From a **cloud VM they will 403** — that is the sandbox's
    egress allowlist (package registries + GitHub only), NOT MLB, which returns 200 to
    GitHub Actions. A 403 here is NOT fatal and needs no desktop: a scheduled Action
@@ -94,6 +95,7 @@ Run these steps IN ORDER. Do not reorder or skip.
    # otherwise the historical record keeps the older run's numbers. Say that you did.
    git add data/raw/ data/processed/current_player_ratings.csv data/snapshots/ \
            data/recency/ data/schedule/ data/standings/ data/pending/ \
+           data/roster/minors_eligible.csv \
            data/injuries/il_status.csv data/injuries/returning.csv
    git commit -m "data refresh YYYY-MM-DD"          # today's real date
    git push origin main
