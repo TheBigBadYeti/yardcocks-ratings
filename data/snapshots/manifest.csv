@@ -6,3 +6,4 @@ date,label,file,players,has_asset_value,md5
 2026-07-21,weekly+superseded_earlier_run,ratings_2026-07-21.csv,10121,True,b9d4391615
 2026-07-22,weekly,ratings_2026-07-22.csv,10122,True,0aca18426e
 2026-07-28,weekly+superseded_earlier_run,ratings_2026-07-28.csv,10122,True,1d2882bad8
+2026-08-02,weekly,ratings_2026-08-02.csv,10121,True,0131c3f623

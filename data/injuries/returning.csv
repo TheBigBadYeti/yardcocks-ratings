@@ -4,6 +4,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 703341,Candido Cuevas,candido cuevas,NYM,rehab,RA,Rehab Assignment
 701831,Carson DeMartini,carson demartini,PHI,rehab,RA,Rehab Assignment
 702318,Chris Campos,chris campos,LAD,rehab,RA,Rehab Assignment
+680273,Chris Meyers,chris meyers,DET,rehab,RA,Rehab Assignment
 695573,Cole Mathis,cole mathis,NYM,rehab,RA,Rehab Assignment
 683494,Euribiel Angeles,euribiel angeles,ATH,rehab,RA,Rehab Assignment
 676883,Hayden Wynja,hayden wynja,SF,rehab,RA,Rehab Assignment
@@ -23,10 +24,11 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 695705,Luke Holman,luke holman,CIN,rehab,RA,Rehab Assignment
 804614,Marco Vargas,marco vargas,NYM,rehab,RA,Rehab Assignment
 668974,Maverick Handley,maverick handley,ATL,rehab,RA,Rehab Assignment
-827625,Michael Carpenter,michael carpenter,MIN,rehab,RA,Rehab Assignment
+685481,Moises Rodriguez,moises rodriguez,DET,rehab,RA,Rehab Assignment
 700358,Narbe Cruz,narbe cruz,HOU,rehab,RA,Rehab Assignment
 699257,Owen Woodward,owen woodward,NYM,rehab,RA,Rehab Assignment
 669740,Travis MacGregor,travis macgregor,NYY,rehab,RA,Rehab Assignment
 686579,Wes Burton,wes burton,CLE,rehab,RA,Rehab Assignment
+814492,Will Watson,will watson,NYM,rehab,RA,Rehab Assignment
 703151,William Bergolla Jr.,william bergolla jr,CWS,rehab,RA,Rehab Assignment
 815608,Wyatt Sanford,wyatt sanford,PIT,rehab,RA,Rehab Assignment

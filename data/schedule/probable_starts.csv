@@ -30,8 +30,8 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 663567,Peter Lambert,HOU,2,2026-07-28;2026-08-02
 695611,Gage Jump,ATH,2,2026-07-28;2026-08-02
 687562,Jake Bennett,BOS,2,2026-07-28;2026-08-02
-650633,Michael King,SD,2,2026-07-28;2026-08-02
 694738,Landen Roupp,SF,2,2026-07-28;2026-08-02
+606996,Kyle Hart,SD,2,2026-07-29;2026-08-02
 678868,Eddy Yean,WSH,1,2026-07-27
 702273,Noah Schultz,CWS,1,2026-07-27
 837227,Tatsuya Imai,HOU,1,2026-07-27
@@ -47,6 +47,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 669456,Shane Bieber,TOR,1,2026-07-28
 700241,Michael McGreevy,STL,1,2026-07-28
 672282,Reid Detmers,LAA,1,2026-07-28
+650633,Michael King,SD,1,2026-07-28
 547179,Michael Lorenzen,COL,1,2026-07-28
 701656,Logan Henderson,MIL,1,2026-07-28
 680736,Justin Wrobleski,LAD,1,2026-07-28
@@ -65,7 +66,6 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 519242,Chris Sale,ATL,1,2026-07-29
 657277,Logan Webb,SF,1,2026-07-29
 623381,Thomas Pannone,MIL,1,2026-07-29
-606996,Kyle Hart,SD,1,2026-07-29
 687312,Gabriel Hughes,COL,1,2026-07-29
 668984,Casey Legumina,TB,1,2026-07-29
 669022,MacKenzie Gore,TEX,1,2026-07-29
