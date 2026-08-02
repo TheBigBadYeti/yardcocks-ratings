@@ -98,21 +98,25 @@ Run these steps IN ORDER. Do not reorder or skip.
            data/roster/minors_eligible.csv \
            data/injuries/il_status.csv data/injuries/returning.csv
    git commit -m "data refresh YYYY-MM-DD"          # today's real date
-   git push origin main
+   git push origin HEAD                              # current branch (main on desktop,
+                                                     # the session branch on cloud)
    ```
-   The caches (recency/schedule/injuries) are committed too: a reader (cloud/phone)
-   can't refetch them (MLB blocks cloud VMs), so `/lineups` relies on whatever the
-   last MLB-capable writer committed. A cloud-only refresh will leave them stale —
-   that's expected; only a desktop/laptop writer refreshes them.
-   Report the new HEAD hash, and **name the branch you pushed to**.
+   The caches are committed too, so readers get them; they also auto-refresh daily via
+   the GitHub Action, so a cloud refresh isn't "stale" -- it's current either way.
+   Report the new HEAD hash and **name the branch you pushed to**.
 
-   **IN A CLOUD SESSION THIS ALWAYS GOES TO A BRANCH, NEVER `main`.** The CCR git proxy
-   "restricts git push operations to the current working branch" — that is
-   infrastructure, not a preference, so do NOT offer to `git push origin main` and do
-   not ask for permission to; it will just 403. Instead: open the PR (or tell me to),
-   and state plainly that the refresh is NOT live until that PR is merged. `/sync` and
-   every decision command read `main`, so an unmerged PR means readers still see last
-   week's numbers.
+   **IN A CLOUD SESSION THE PUSH ALWAYS GOES TO A BRANCH, NEVER `main`.** The CCR git
+   proxy "restricts git push operations to the current working branch" — infrastructure,
+   not a preference, so don't try `git push origin main`; it 403s. On cloud, immediately
+   CREATE the pull request and give me the tappable link:
+   ```
+   gh pr create --fill --base main --head "$(git branch --show-current)"
+   ```
+   Then print the PR URL on its own line and say plainly: **the refresh is NOT live
+   until you merge this PR** (one tap in the GitHub app). `/sync` and every decision
+   command read `main`, so an unmerged PR means readers still see last week's numbers.
+   If `gh pr create` isn't available in the environment, give me the branch name and the
+   `github.com/TheBigBadYeti/yardcocks-ratings/pull/new/<branch>` URL instead.
 
    From a desktop/laptop there's no proxy, so the push lands on `main` directly and no
    PR is needed. If the push FAILS outright (no write auth), say so plainly: the ratings
@@ -127,21 +131,18 @@ Run these steps IN ORDER. Do not reorder or skip.
    Snapshot       : data/snapshots/ratings_YYYY-MM-DD.csv
    Standings      : updated this run (<team> W-L) | NOT updated -- send DROP 2
    Published      : <HEAD hash> on <branch>
-   LIVE?          : YES (on main) | NO -- MERGE PR #<n> FIRST
+   LIVE?          : YES (on main) | NO -- MERGE THIS PR FIRST: <PR url>
    ----------------------------------------------
    NEXT: <merge the PR, then> /posture -> /lineups -> /waivers -> /trades
    ```
-   If you pushed to a branch, the LIVE line must say NO and the NEXT line must lead with
-   merging the PR. Never end a cloud refresh without that reminder -- the whole run is
-   invisible to readers until it merges, and that failure is silent.
+   If you pushed to a branch, the LIVE line must say NO and carry the tappable PR link,
+   and the NEXT line must lead with merging it. Never end a cloud refresh without that --
+   the whole run is invisible to readers until it merges, and that failure is silent.
 
    If Standings says NOT updated, ask me for the Fantrax-Standings export before you
    sign off -- /posture and /trades will otherwise price partners off last week's table.
    Then say one line on what to run next and why, e.g. "start with /posture — it sets
-   the lens /waivers and /trades price off." If the push FAILED, lead with that
-   instead: no reader sees this refresh until it lands on main.
-   If the MLB fetches 403'd (cloud VM), note that schedule/injury caches are stale, so
-   /lineups will be less schedule-aware until a laptop refresh.
+   the lens /waivers and /trades price off."
 
 This is the single writer command — it replaces the old /load and /publish (both
 folded in). `/sync` is the read-only counterpart for reader sessions.
