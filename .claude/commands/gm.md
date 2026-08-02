@@ -31,15 +31,22 @@ WEEKLY PATTERN  (in order — each step feeds the next)
 AS NEEDED
   /sync       Pull the latest published ratings + caches. FIRST thing in any cloud or
               phone session — read-only, never writes.
+  /recheck    Re-pull live MLB data (injuries, minors status, schedule, recent form)
+              mid-week without a full refresh. (They also auto-refresh daily.)
+  /moves      Record roster moves I made in Fantrax so /lineups + /waivers match my
+              real roster before the next /refresh. Tell it in plain English.
   /ratings    Explain any player's score (follow the command with a name).
   /audit      q-tier mis-tier sanity check. Monthly, or when a score looks wrong.
   /log-trade  Record what a negotiation revealed about an owner (front-office memory;
               /trades surfaces this history automatically next time).
   /gm         Show this list.
 
+You only ever type a /command — never python or gh; the command runs those for you.
+All state lives in git, so a cloud/phone /sync sees exactly what the desktop does.
+
 WHO WRITES WHAT
-  /refresh is the ONLY writer — one writer at a time, never two at once.
-  Everything else reads what /refresh published. /sync is the reader's pull.
+  Writers: /refresh, /moves, /log-trade, /recheck. One writer at a time, never two.
+  Everything else reads what was published. /sync is the reader's pull.
 
 ON THE ROAD
   Phone/cloud: /sync, then any decision command.
