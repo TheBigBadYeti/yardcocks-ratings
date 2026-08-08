@@ -4,6 +4,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 693645,Cam Schlittler,NYY,2,2026-08-03;2026-08-09
 700241,Michael McGreevy,STL,2,2026-08-03;2026-08-09
 696149,Bubba Chandler,PIT,2,2026-08-03;2026-08-08
+571510,Matthew Boyd,CHC,2,2026-08-03;2026-08-09
 680736,Justin Wrobleski,LAD,2,2026-08-03;2026-08-09
 657277,Logan Webb,SF,2,2026-08-03;2026-08-09
 547179,Michael Lorenzen,COL,2,2026-08-03;2026-08-09
@@ -25,7 +26,6 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 676106,Emerson Hancock,SEA,2,2026-08-04;2026-08-09
 675512,Troy Melton,DET,2,2026-08-04;2026-08-09
 687075,Brandon Sproat,MIL,1,2026-08-03
-571510,Matthew Boyd,CHC,1,2026-08-03
 615698,Cal Quantrill,TEX,1,2026-08-03
 664299,Cristian Javier,HOU,1,2026-08-03
 669456,Shane Bieber,TOR,1,2026-08-03
@@ -102,6 +102,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 554430,Zack Wheeler,PHI,1,2026-08-07
 667755,José Soriano,TOR,1,2026-08-07
 676917,Cade Cavalli,WSH,1,2026-08-07
+695534,Chase Petty,CIN,1,2026-08-07
 608331,Max Fried,NYY,1,2026-08-07
 641816,Tyler Mahle,ATL,1,2026-08-07
 801139,Payton Tolle,BOS,1,2026-08-07
@@ -113,6 +114,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 675660,Shane Drohan,MIL,1,2026-08-07
 805673,Zebby Matthews,MIN,1,2026-08-07
 663738,Daniel Lynch IV,KC,1,2026-08-07
+592332,Kevin Gausman,CHC,1,2026-08-07
 681517,Kyle Leahy,STL,1,2026-08-07
 663372,Ryan Feltner,COL,1,2026-08-07
 543135,Nathan Eovaldi,TEX,1,2026-08-07
@@ -123,6 +125,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 669854,Ronel Blanco,HOU,1,2026-08-07
 669302,Logan Gilbert,SEA,1,2026-08-07
 656876,Drew Rasmussen,TB,1,2026-08-07
+664141,JT Brubaker,SF,1,2026-08-07
 672456,Keider Montero,DET,1,2026-08-07
 543037,Gerrit Cole,NYY,1,2026-08-08
 519242,Chris Sale,ATL,1,2026-08-08
@@ -134,6 +137,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 476594,Robert Stock,NYM,1,2026-08-08
 695505,Chase Burns,CIN,1,2026-08-08
 607625,Seth Lugo,KC,1,2026-08-08
+605280,Clay Holmes,CHC,1,2026-08-08
 688107,Robert Gasser,MIL,1,2026-08-08
 671737,Taj Bradley,MIN,1,2026-08-08
 663567,Peter Lambert,HOU,1,2026-08-08

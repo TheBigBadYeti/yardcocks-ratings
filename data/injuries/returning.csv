@@ -1,5 +1,6 @@
 mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 703060,Alejandro Urias,alejandro urias,NYM,rehab,RA,Rehab Assignment
+800953,Brady Day,brady day,PHI,rehab,RA,Rehab Assignment
 806967,Brailer Guerrero,brailer guerrero,TB,rehab,RA,Rehab Assignment
 702318,Chris Campos,chris campos,LAD,rehab,RA,Rehab Assignment
 680273,Chris Meyers,chris meyers,DET,rehab,RA,Rehab Assignment
@@ -7,7 +8,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 809100,Ixan Henderson,ixan henderson,STL,rehab,RA,Rehab Assignment
 701464,Joe Miller,joe miller,DET,rehab,RA,Rehab Assignment
 693725,Juan Nuñez,juan nunez,BAL,rehab,RA,Rehab Assignment
-825100,Kevin Warunek,kevin warunek,PHI,rehab,RA,Rehab Assignment
 686952,Kyle Dernedde,kyle dernedde,CLE,rehab,RA,Rehab Assignment
 692294,Luis Gutierrez,luis gutierrez,SD,rehab,RA,Rehab Assignment
 808153,Luis Merejo,luis merejo,CLE,rehab,RA,Rehab Assignment
