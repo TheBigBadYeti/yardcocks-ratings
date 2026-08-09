@@ -7,6 +7,8 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 571510,Matthew Boyd,CHC,2,2026-08-03;2026-08-09
 680736,Justin Wrobleski,LAD,2,2026-08-03;2026-08-09
 657277,Logan Webb,SF,2,2026-08-03;2026-08-09
+664299,Cristian Javier,HOU,2,2026-08-03;2026-08-09
+669456,Shane Bieber,TOR,2,2026-08-03;2026-08-09
 547179,Michael Lorenzen,COL,2,2026-08-03;2026-08-09
 694297,Brandon Pfaadt,AZ,2,2026-08-03;2026-08-08
 650633,Michael King,SD,2,2026-08-03;2026-08-08
@@ -27,8 +29,6 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 675512,Troy Melton,DET,2,2026-08-04;2026-08-09
 687075,Brandon Sproat,MIL,1,2026-08-03
 615698,Cal Quantrill,TEX,1,2026-08-03
-664299,Cristian Javier,HOU,1,2026-08-03
-669456,Shane Bieber,TOR,1,2026-08-03
 693855,Ian Seymour,TB,1,2026-08-03
 687223,Carson Palmquist,WSH,1,2026-08-04
 677960,Ryan Weathers,NYY,1,2026-08-04
@@ -151,7 +151,8 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 668909,Gavin Williams,CLE,1,2026-08-08
 808967,Yoshinobu Yamamoto,LAD,1,2026-08-08
 669923,George Kirby,SEA,1,2026-08-08
-643377,Griffin Jax,TB,1,2026-08-08
+668984,Casey Legumina,TB,1,2026-08-08
+695418,Brad Lord,WSH,1,2026-08-09
 694819,Jacob Misiorowski,MIL,1,2026-08-09
 687570,Connor Prielipp,MIN,1,2026-08-09
 677958,Kumar Rocker,TEX,1,2026-08-09
