@@ -318,11 +318,33 @@ def optimal_hitters(hitters, slots=HIT_SLOTS):
     eligibility. Exact (DP over ordered slots + used-player bitmask), capped to a
     realistic candidate set so it stays instant. Returns list of (slot, rec|None)."""
     order = sorted(range(len(hitters)), key=lambda i: -hitters[i]["ewp"])
-    cand = order[:min(len(order), len(slots) + 5)]   # only plausible starters
-    bit = {p: b for b, p in enumerate(cand)}
 
     def eligible(pi, slot):
         return slot == "UT" or slot in hitters[pi]["tok"]
+
+    # Global top-N by EWP covers the usual case, but ranking by EWP alone drops
+    # scarce-position players: the only 1B on the roster can sit below 14 other
+    # hitters and still be worth 10 pts vs an empty 1B slot. So union in the best
+    # few eligible for EACH slot -- a slot can never go unfilled while a legal
+    # body exists on the bench.
+    cand = order[:min(len(order), len(slots) + 5)]
+    seen = set(cand)
+    for slot in dict.fromkeys(slots):                # distinct slots, keep order
+        if slot == "UT":
+            continue
+        depth = slots.count(slot)                    # OF appears 3x -> keep 3
+        kept = 0
+        for pi in order:
+            if kept >= depth:
+                break
+            if not eligible(pi, slot):
+                continue
+            kept += 1
+            if pi not in seen:
+                seen.add(pi)
+                cand.append(pi)
+
+    bit = {p: b for b, p in enumerate(cand)}
 
     memo = {}
 
