@@ -1,6 +1,10 @@
 {
-  "updated": "2026-08-02",
-  "add": [],
-  "drop": [],
+  "updated": "2026-08-09",
+  "add": [
+    "Nolan Schanuel"
+  ],
+  "drop": [
+    "Matt Chapman"
+  ],
   "ir": []
 }
