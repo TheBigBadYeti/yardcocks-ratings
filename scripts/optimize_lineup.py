@@ -37,6 +37,9 @@ SP_SLOTS, RP_SLOTS, START_CAP, TURN = 6, 3, 12, 5
 ELIGIBLE_STATUS = {"active", "reserve"}
 RP_APPEAR_RATE = 0.45   # relievers appear in ~45% of team games (rough)
 ROSTER_LIMIT = 40       # Fantrax dynasty roster cap; at/above => an add needs a drop
+IR_SLOTS = 4            # league setting: 4 Inj Res slots. When they're all occupied an
+                        # MLB-IL player CANNOT be parked on IR -- he sits on Reserve and
+                        # burns a bench spot, so "move him to IR" is not actionable advice.
 
 # FORM BLEND (lineup layer only -- scoring is untouched).
 # forward_fpg is a SEASON rate. For a weekly lineup that misprices anyone whose season
@@ -489,7 +492,12 @@ def roster_view(df_all, team, players, started, il_lag):
                   f"EWP {p['ewp']:>5.1f}")
 
     if il_lag:
-        print("MLB IL but active on Fantrax -> MOVE TO IR (frees a startable slot):")
+        if len(inj) >= IR_SLOTS:
+            print(f"MLB IL, but IR IS FULL ({len(inj)}/{IR_SLOTS}) -> these sit on RESERVE "
+                  f"and burn a bench spot:")
+        else:
+            print(f"MLB IL but active on Fantrax -> MOVE TO IR "
+                  f"({len(inj)}/{IR_SLOTS} used, frees a startable slot):")
         for x in sorted(il_lag, key=lambda z: -z["win_now"]):
             tag = "HOLD" if x["hold"] else "low value"
             print(f"   {x['player']:<22} win {x['win_now']:.0f}/dyn {x['dynasty']:.0f}"
@@ -589,8 +597,18 @@ def main():
         for t in needs["thin_roles"]:
             print(f"   {t['role']}: {t['startable']} startable for {t['slots']} slots")
     if il_excluded:
-        print("IL (your injured players -- IR them; the slot streams until they RETURN, "
-              "you don't permanently replace a hold):")
+        _ir_used = int(df_all["owner_status"].astype(str)
+                       .str.fullmatch(a.team, case=False, na=False)
+                       .pipe(lambda m: df_all[m]["roster_status"].astype(str)
+                             .str.lower().str.contains("inj", na=False).sum()))
+        needs["ir_used"], needs["ir_slots"] = _ir_used, IR_SLOTS
+        if _ir_used >= IR_SLOTS:
+            print(f"IL (IR FULL {_ir_used}/{IR_SLOTS} -- these CANNOT be parked; they sit "
+                  f"on Reserve. To free a bench spot you must drop someone, and the "
+                  f"cheapest cut is the weakest asset already holding an IR slot):")
+        else:
+            print(f"IL (your injured players -- IR them, {_ir_used}/{IR_SLOTS} used; the "
+                  f"slot streams until they RETURN, you don't permanently replace a hold):")
         for x in sorted(il_excluded, key=lambda z: -z["win_now"]):
             note = ("HOLD -- top asset, returns to this slot; do NOT drop"
                     if x["hold"] else "low value -- droppable if you need the spot")
