@@ -37,8 +37,10 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 669467,Andre Pallante,STL,1,2026-08-11
 650911,Cristopher Sánchez,PHI,1,2026-08-11
 696270,Ryan Johnson,LAA,1,2026-08-11
+674003,Cody Bradford,TEX,1,2026-08-11
 683352,Mitch Bratt,AZ,1,2026-08-11
 608372,Tomoyuki Sugano,COL,1,2026-08-11
+686930,Mason Barnett,ATH,1,2026-08-11
 607259,Nick Martinez,TB,1,2026-08-11
 621111,Walker Buehler,SD,1,2026-08-11
 690986,Kyle Harrison,MIL,1,2026-08-11
@@ -80,3 +82,5 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 592332,Kevin Gausman,CHC,1,2026-08-13
 605400,Aaron Nola,PHI,1,2026-08-13
 700712,Walbert Ureña,LAA,1,2026-08-13
+669461,Matthew Liberatore,STL,1,2026-08-14
+640455,Sean Manaea,NYM,1,2026-08-15
