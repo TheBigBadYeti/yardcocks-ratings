@@ -1,8 +1,8 @@
 mlb_id,pitcher,team,starts_this_week,start_dates
+681035,Christian Scott,NYM,2,2026-08-10;2026-08-16
 592791,Jameson Taillon,TOR,1,2026-08-10
 543243,Sonny Gray,BOS,1,2026-08-10
 693821,Bryce Elder,ATL,1,2026-08-10
-681035,Christian Scott,NYM,1,2026-08-10
 665152,Dean Kremer,MIN,1,2026-08-10
 669432,Trevor Rogers,BAL,1,2026-08-10
 690928,Hunter Dobbins,STL,1,2026-08-10
@@ -23,6 +23,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 676440,Tanner Bibee,CLE,1,2026-08-11
 691587,Eury Pérez,MIA,1,2026-08-11
 694973,Paul Skenes,PIT,1,2026-08-11
+663623,Jake Irvin,WSH,1,2026-08-11
 684007,Shota Imanaga,CHC,1,2026-08-11
 677960,Ryan Weathers,NYY,1,2026-08-11
 693433,Bryan Woo,SEA,1,2026-08-11
@@ -44,6 +45,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 607259,Nick Martinez,TB,1,2026-08-11
 621111,Walker Buehler,SD,1,2026-08-11
 690986,Kyle Harrison,MIL,1,2026-08-11
+687931,Carson Whisenhunt,SF,1,2026-08-11
 686613,Hunter Brown,HOU,1,2026-08-11
 605483,Blake Snell,LAD,1,2026-08-11
 608379,Michael Wacha,KC,1,2026-08-11
@@ -51,14 +53,18 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 669358,Shane Baz,BAL,1,2026-08-12
 681517,Kyle Leahy,STL,1,2026-08-12
 554430,Zack Wheeler,PHI,1,2026-08-12
+678022,Jack Perkins,ATH,1,2026-08-12
 656876,Drew Rasmussen,TB,1,2026-08-12
 518876,Merrill Kelly,AZ,1,2026-08-12
 663372,Ryan Feltner,COL,1,2026-08-12
+687911,Bryan King,HOU,1,2026-08-12
 592662,Robbie Ray,SD,1,2026-08-12
 669160,Dustin May,MIL,1,2026-08-12
 664285,Framber Valdez,DET,1,2026-08-12
 656492,Foster Griffin,CLE,1,2026-08-12
 676083,Janson Junk,MIA,1,2026-08-12
+669387,Carmen Mlodzinski,PIT,1,2026-08-12
+800600,Jackson Kent,WSH,1,2026-08-12
 656849,David Peterson,CHC,1,2026-08-12
 701542,Will Warren,NYY,1,2026-08-12
 682243,Bryce Miller,SEA,1,2026-08-12
@@ -68,19 +74,29 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 804267,Zac Thornton,NYM,1,2026-08-12
 622491,Luis Castillo,CWS,1,2026-08-12
 695076,Rhett Lowder,CIN,1,2026-08-12
+641778,Eric Lauer,LAD,1,2026-08-12
 663738,Daniel Lynch IV,KC,1,2026-08-12
 691946,George Klassen,LAA,1,2026-08-12
+615698,Cal Quantrill,TEX,1,2026-08-12
 672456,Keider Montero,DET,1,2026-08-13
 800048,Parker Messick,CLE,1,2026-08-13
 663969,Tyler Phillips,MIA,1,2026-08-13
 677952,Braxton Ashcraft,PIT,1,2026-08-13
 608331,Max Fried,NYY,1,2026-08-13
 669302,Logan Gilbert,SEA,1,2026-08-13
+663436,Davis Martin,CWS,1,2026-08-13
 671096,Andrew Abbott,CIN,1,2026-08-13
 453286,Max Scherzer,TOR,1,2026-08-13
 801139,Payton Tolle,BOS,1,2026-08-13
+676917,Cade Cavalli,WSH,1,2026-08-13
 592332,Kevin Gausman,CHC,1,2026-08-13
 605400,Aaron Nola,PHI,1,2026-08-13
 700712,Walbert Ureña,LAA,1,2026-08-13
 669461,Matthew Liberatore,STL,1,2026-08-14
+695505,Chase Burns,CIN,1,2026-08-14
+476594,Robert Stock,NYM,1,2026-08-14
+668909,Gavin Williams,CLE,1,2026-08-14
+700241,Michael McGreevy,STL,1,2026-08-15
 640455,Sean Manaea,NYM,1,2026-08-15
+663903,Brady Singer,CIN,1,2026-08-15
+676282,Joey Cantillo,CLE,1,2026-08-15
