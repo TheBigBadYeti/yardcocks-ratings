@@ -21,7 +21,6 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 623454,Drew Anderson,DET,2,2026-08-11;2026-08-16
 676440,Tanner Bibee,CLE,2,2026-08-11;2026-08-16
 691587,Eury Pérez,MIA,2,2026-08-11;2026-08-16
-694973,Paul Skenes,PIT,2,2026-08-11;2026-08-16
 663623,Jake Irvin,WSH,2,2026-08-11;2026-08-16
 677960,Ryan Weathers,NYY,2,2026-08-11;2026-08-16
 693433,Bryan Woo,SEA,2,2026-08-11;2026-08-16
@@ -33,6 +32,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 674003,Cody Bradford,TEX,2,2026-08-11;2026-08-16
 686613,Hunter Brown,HOU,2,2026-08-11;2026-08-16
 592791,Jameson Taillon,TOR,1,2026-08-10
+694973,Paul Skenes,PIT,1,2026-08-11
 684007,Shota Imanaga,CHC,1,2026-08-11
 527048,Martín Pérez,ATL,1,2026-08-11
 690997,Nolan McLean,NYM,1,2026-08-11
@@ -140,6 +140,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 663903,Brady Singer,CIN,1,2026-08-15
 687473,Ryan Gusto,MIA,1,2026-08-15
 676282,Joey Cantillo,CLE,1,2026-08-15
+593974,Wandy Peralta,SD,1,2026-08-15
 676106,Emerson Hancock,SEA,1,2026-08-15
 687570,Connor Prielipp,MIN,1,2026-08-15
 666200,Jesús Luzardo,PHI,1,2026-08-15
@@ -150,4 +151,5 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 694819,Jacob Misiorowski,MIL,1,2026-08-15
 677976,Randy Dobnak,KC,1,2026-08-15
 669372,J.T. Ginn,ATH,1,2026-08-15
+669199,Lake Bachar,PIT,1,2026-08-16
 665795,Edward Cabrera,CHC,1,2026-08-16
