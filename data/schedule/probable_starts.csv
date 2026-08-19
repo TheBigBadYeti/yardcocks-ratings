@@ -37,7 +37,8 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 518876,Merrill Kelly,AZ,1,2026-08-18
 804267,Zac Thornton,NYM,1,2026-08-18
 592662,Robbie Ray,SD,1,2026-08-18
-678022,Jack Perkins,ATH,1,2026-08-18
+663738,Daniel Lynch IV,KC,1,2026-08-18
+669620,Brady Basso,ATH,1,2026-08-18
 805673,Zebby Matthews,MIN,1,2026-08-18
 641816,Tyler Mahle,ATL,1,2026-08-18
 690986,Kyle Harrison,MIL,1,2026-08-18
@@ -45,6 +46,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 615698,Cal Quantrill,TEX,1,2026-08-18
 800600,Jackson Kent,WSH,1,2026-08-18
 592332,Kevin Gausman,CHC,1,2026-08-18
+663542,Bryan Hudson,CWS,1,2026-08-18
 664299,Cristian Javier,HOU,1,2026-08-18
 691946,George Klassen,LAA,1,2026-08-18
 663372,Ryan Feltner,COL,1,2026-08-18
@@ -54,21 +56,26 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 476594,Robert Stock,NYM,1,2026-08-19
 650633,Michael King,SD,1,2026-08-19
 671737,Taj Bradley,MIN,1,2026-08-19
-519242,Chris Sale,ATL,1,2026-08-19
+700363,AJ Smith-Shawver,ATL,1,2026-08-19
 605280,Clay Holmes,CHC,1,2026-08-19
+656794,Sean Newcomb,CWS,1,2026-08-19
 801139,Payton Tolle,BOS,1,2026-08-19
 694297,Brandon Pfaadt,AZ,1,2026-08-19
 605400,Aaron Nola,PHI,1,2026-08-19
 645261,Sandy Alcantara,MIA,1,2026-08-19
 605135,Chris Bassitt,BAL,1,2026-08-19
+701542,Will Warren,NYY,1,2026-08-19
 800048,Parker Messick,CLE,1,2026-08-19
+683363,Matt Wilkinson,SF,1,2026-08-19
 695505,Chase Burns,CIN,1,2026-08-19
 669461,Matthew Liberatore,STL,1,2026-08-19
 656876,Drew Rasmussen,TB,1,2026-08-19
 453286,Max Scherzer,TOR,1,2026-08-19
 669160,Dustin May,MIL,1,2026-08-19
 669302,Logan Gilbert,SEA,1,2026-08-19
+677958,Kumar Rocker,TEX,1,2026-08-19
 676917,Cade Cavalli,WSH,1,2026-08-19
+814490,Ethan Pecko,HOU,1,2026-08-19
 700712,Walbert Ureña,LAA,1,2026-08-19
 607536,Kyle Freeland,COL,1,2026-08-19
 808963,Roki Sasaki,LAD,1,2026-08-19
@@ -78,6 +85,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 694738,Landen Roupp,SF,1,2026-08-20
 693855,Ian Seymour,TB,1,2026-08-20
 669456,Shane Bieber,TOR,1,2026-08-20
+656550,Grant Holmes,ATL,1,2026-08-20
 688107,Robert Gasser,MIL,1,2026-08-20
 669923,George Kirby,SEA,1,2026-08-20
 680694,Kyle Bradish,BAL,1,2026-08-20
@@ -85,4 +93,10 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 674841,Andrew Alvarez,WSH,1,2026-08-20
 663567,Peter Lambert,HOU,1,2026-08-20
 680570,Grayson Rodriguez,LAA,1,2026-08-20
+519242,Chris Sale,ATL,1,2026-08-21
+543243,Sonny Gray,BOS,1,2026-08-21
+676282,Joey Cantillo,CLE,1,2026-08-21
 666157,Nick Lodolo,CIN,1,2026-08-21
+663776,Patrick Sandoval,BOS,1,2026-08-22
+676440,Tanner Bibee,CLE,1,2026-08-22
+687562,Jake Bennett,BOS,1,2026-08-23

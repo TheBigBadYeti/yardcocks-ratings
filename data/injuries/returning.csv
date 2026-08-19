@@ -1,6 +1,5 @@
 mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 800953,Brady Day,brady day,PHI,rehab,RA,Rehab Assignment
-680273,Chris Meyers,chris meyers,DET,rehab,RA,Rehab Assignment
 702501,Eli Serrano III,eli serrano iii,NYM,rehab,RA,Rehab Assignment
 803175,Ethan Anderson,ethan anderson,BAL,rehab,RA,Rehab Assignment
 676883,Hayden Wynja,hayden wynja,SF,rehab,RA,Rehab Assignment
@@ -8,7 +7,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 803385,Jay Harry,jay harry,TOR,rehab,RA,Rehab Assignment
 807726,John Peck,john peck,DET,rehab,RA,Rehab Assignment
 700280,Miguel Mendez,miguel mendez,SF,rehab,RA,Rehab Assignment
-685481,Moises Rodriguez,moises rodriguez,DET,rehab,RA,Rehab Assignment
 699257,Owen Woodward,owen woodward,NYM,rehab,RA,Rehab Assignment
 696155,Sean Sullivan,sean sullivan,PIT,rehab,RA,Rehab Assignment
 814492,Will Watson,will watson,NYM,rehab,RA,Rehab Assignment
