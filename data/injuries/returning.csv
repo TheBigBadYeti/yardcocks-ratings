@@ -1,4 +1,5 @@
 mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
+805951,Boston Baro,boston baro,NYM,rehab,RA,Rehab Assignment
 702501,Eli Serrano III,eli serrano iii,NYM,rehab,RA,Rehab Assignment
 803175,Ethan Anderson,ethan anderson,BAL,rehab,RA,Rehab Assignment
 804582,Garrett McMillan,garrett mcmillan,PIT,rehab,RA,Rehab Assignment
@@ -7,4 +8,4 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 807726,John Peck,john peck,DET,rehab,RA,Rehab Assignment
 699257,Owen Woodward,owen woodward,NYM,rehab,RA,Rehab Assignment
 696040,Po-Yu Chen,po-yu chen,PIT,rehab,RA,Rehab Assignment
-814492,Will Watson,will watson,NYM,rehab,RA,Rehab Assignment
+803035,Riley Gowens,riley gowens,CWS,rehab,RA,Rehab Assignment
