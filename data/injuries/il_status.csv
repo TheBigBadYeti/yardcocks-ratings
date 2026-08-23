@@ -71,6 +71,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 811083,Andrew Tess,andrew tess,BAL,7-day,D7,Injured 7-Day
 681003,Andrew Walling,andrew walling,PHI,60-day,D60,Injured 60-Day
 820848,Andy Fabian,andy fabian,BAL,60-day,D60,Injured 60-Day
+681624,Andy Pages,andy pages,LAD,10-day,D10,Injured 10-Day
 837329,Andy Sanchez,andy sanchez,KC,60-day,D60,Injured 60-Day
 805874,Aneudis Mejia,aneudis mejia,TEX,7-day,D7,Injured 7-Day
 703102,Anfernny Reyes,anfernny reyes,MIL,60-day,D60,Injured 60-Day
@@ -120,6 +121,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 803015,Ben Hartl,ben hartl,CWS,7-day,D7,Injured 7-Day
 696292,Ben Hess,ben hess,NYY,60-day,D60,Injured 60-Day
 815456,Ben Shields,ben shields,COL,60-day,D60,Injured 60-Day
+830337,Ben Tryon,ben tryon,HOU,7-day,D7,Injured 7-Day
 810938,Ben Williamson,ben williamson,TB,10-day,D10,Injured 10-Day
 815969,Bernardo Rivera,bernardo rivera,TEX,full-season,ILF,Injured - Full Season
 815814,Billy Carlson,billy carlson,CWS,7-day,D7,Injured 7-Day
@@ -140,6 +142,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 676272,Bobby Miller,bobby miller,LAD,60-day,D60,Injured 60-Day
 670102,Bowden Francis,bowden francis,TOR,60-day,D60,Injured 60-Day
 641745,Brad Keller,brad keller,PHI,60-day,D60,Injured 60-Day
+804133,Braden Holcomb,braden holcomb,CWS,7-day,D7,Injured 7-Day
 813882,Brady Choban,brady choban,LAA,7-day,D7,Injured 7-Day
 703519,Brady Counsell,brady counsell,AZ,60-day,D60,Injured 60-Day
 687984,Brady Hill,brady hill,WSH,7-day,D7,Injured 7-Day
@@ -153,7 +156,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 656232,Brandon Bielak,brandon bielak,HOU,60-day,D60,Injured 60-Day
 669361,Brandon Birdsell,brandon birdsell,CHC,60-day,D60,Injured 60-Day
 822162,Brandon Forrester,brandon forrester,HOU,7-day,D7,Injured 7-Day
-605335,Brandon Leibrandt,brandon leibrandt,CIN,7-day,D7,Injured 7-Day
 687888,Brandon Walter,brandon walter,HOU,60-day,D60,Injured 60-Day
 682227,Brandon Williamson,brandon williamson,CIN,60-day,D60,Injured 60-Day
 605540,Brandon Woodruff,brandon woodruff,MIL,60-day,D60,Injured 60-Day
@@ -291,9 +293,8 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 800961,Collin Rothermel,collin rothermel,AZ,full-season,ILF,Injured - Full Season
 806068,Colt Emerson,colt emerson,SEA,10-day,D10,Injured 10-Day
 822795,Colton Book,colton book,CHC,full-season,ILF,Injured - Full Season
-813349,Connelly Early,connelly early,WSH,15-day,D15,Injured 15-Day
+813349,Connelly Early,connelly early,WSH,60-day,D60,Injured 60-Day
 694829,Connor Burns,connor burns,CIN,60-day,D60,Injured 60-Day
-805879,Connor Foley,connor foley,AZ,7-day,D7,Injured 7-Day
 687362,Connor Gillispie,connor gillispie,PHI,full-season,ILF,Injured - Full Season
 663731,Connor Kaiser,connor kaiser,KC,60-day,D60,Injured 60-Day
 835024,Connor Knox,connor knox,CHC,full-season,ILF,Injured - Full Season
@@ -336,7 +337,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 801270,Darwin Rodriguez,darwin rodriguez,MIA,full-season,ILF,Injured - Full Season
 807485,Davian Garcia,davian garcia,WSH,full-season,ILF,Injured - Full Season
 701581,David Festa,david festa,MIN,60-day,D60,Injured 60-Day
-678173,David McCabe,david mccabe,ATL,7-day,D7,Injured 7-Day
 703330,David Rodriguez,david rodriguez,KC,60-day,D60,Injured 60-Day
 701336,Davion Hickson,davion hickson,LAD,full-season,ILF,Injured - Full Season
 663436,Davis Martin,davis martin,CWS,15-day,D15,Injured 15-Day
@@ -360,7 +360,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 837818,Diego Trillo,diego trillo,MIL,7-day,D7,Injured 7-Day
 816403,Dilan Fernandez,dilan fernandez,SF,60-day,D60,Injured 60-Day
 837802,Diony Brujan,diony brujan,KC,60-day,D60,Injured 60-Day
-806270,Dominic Perachi,dominic perachi,PIT,7-day,D7,Injured 7-Day
+806270,Dominic Perachi,dominic perachi,PIT,full-season,ILF,Injured - Full Season
 805255,Dominick Reid,dominick reid,CHC,60-day,D60,Injured 60-Day
 825095,Drake George,drake george,SF,60-day,D60,Injured 60-Day
 695046,Drew Brutcher,drew brutcher,HOU,60-day,D60,Injured 60-Day
@@ -433,7 +433,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 825334,Ethan Wagner,ethan wagner,HOU,60-day,D60,Injured 60-Day
 831273,Ethan Young,ethan young,STL,60-day,D60,Injured 60-Day
 809767,Evan Aschenbeck,evan aschenbeck,CHC,full-season,ILF,Injured - Full Season
-683157,Evan Fitterer,evan fitterer,SD,7-day,D7,Injured 7-Day
 687145,Evan Justice,evan justice,COL,60-day,D60,Injured 60-Day
 679928,Evan McKendry,evan mckendry,MIA,60-day,D60,Injured 60-Day
 820898,Fabian Soto,fabian soto,LAA,full-season,ILF,Injured - Full Season
@@ -466,7 +465,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 676979,Garrett Crochet,garrett crochet,BOS,60-day,D60,Injured 60-Day
 641658,Garrett Hampson,garrett hampson,CIN,7-day,D7,Injured 7-Day
 701718,Garrett Horn,garrett horn,MIN,60-day,D60,Injured 60-Day
-836072,Garrett Langrell,garrett langrell,SF,7-day,D7,Injured 7-Day
+836072,Garrett Langrell,garrett langrell,SF,60-day,D60,Injured 60-Day
 682003,Garrett Martin,garrett martin,NYY,full-season,ILF,Injured - Full Season
 693243,Garrett Pennington,garrett pennington,DET,60-day,D60,Injured 60-Day
 676477,Garrett Whitlock,garrett whitlock,BOS,15-day,D15,Injured 15-Day
@@ -477,6 +476,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 694813,Gavin Stone,gavin stone,LAD,60-day,D60,Injured 60-Day
 830979,Georwill Rodriguez,georwill rodriguez,NYM,60-day,D60,Injured 60-Day
 685712,Geovanny Planchart,geovanny planchart,TOR,7-day,D7,Injured 7-Day
+823893,Geovanny Vasquez,geovanny vasquez,CHC,7-day,D7,Injured 7-Day
 690455,German Fajardo,german fajardo,SEA,full-season,ILF,Injured - Full Season
 519317,Giancarlo Stanton,giancarlo stanton,NYY,10-day,D10,Injured 10-Day
 806923,Gijs Van Den Brink,gijs van den brink,KC,60-day,D60,Injured 60-Day
@@ -506,6 +506,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 688274,Hayden Seig,hayden seig,LAA,60-day,D60,Injured 60-Day
 838515,Hector Cancio,hector cancio,NYY,60-day,D60,Injured 60-Day
 800540,Hector Osorio,hector osorio,TEX,7-day,D7,Injured 7-Day
+691616,Hedbert Perez,hedbert perez,TOR,7-day,D7,Injured 7-Day
 816091,Henderson Salas,henderson salas,DET,60-day,D60,Injured 60-Day
 808889,Henry Moreno,henry moreno,WSH,60-day,D60,Injured 60-Day
 829695,Hernan Mejia,hernan mejia,WSH,60-day,D60,Injured 60-Day
@@ -514,6 +515,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 804546,Hoss Brewer,hoss brewer,NYM,7-day,D7,Injured 7-Day
 829622,Hunter Allen,hunter allen,BAL,full-season,ILF,Injured - Full Season
 675450,Hunter Cranton,hunter cranton,AZ,60-day,D60,Injured 60-Day
+690928,Hunter Dobbins,hunter dobbins,STL,15-day,D15,Injured 15-Day
 696100,Hunter Goodman,hunter goodman,COL,10-day,D10,Injured 10-Day
 668881,Hunter Greene,hunter greene,CIN,60-day,D60,Injured 60-Day
 640451,Hunter Harvey,hunter harvey,CHC,60-day,D60,Injured 60-Day
@@ -559,7 +561,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 686533,Jackson Finley,jackson finley,ATH,7-day,D7,Injured 7-Day
 663804,Jackson Kowar,jackson kowar,BAL,full-season,ILF,Injured - Full Season
 694461,Jackson Smeltz,jackson smeltz,SD,60-day,D60,Injured 60-Day
-804240,Jacob Burke,jacob burke,CWS,7-day,D7,Injured 7-Day
 693527,Jacob Denner,jacob denner,SEA,full-season,ILF,Injured - Full Season
 702571,Jacob Miller,jacob miller,MIA,7-day,D7,Injured 7-Day
 825757,Jacob Remily,jacob remily,CLE,60-day,D60,Injured 60-Day
@@ -596,6 +597,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 820955,Jaset Martinez,jaset martinez,CIN,60-day,D60,Injured 60-Day
 592094,Jason Adam,jason adam,SD,60-day,D60,Injured 60-Day
 827753,Jason Alvarez,jason alvarez,TEX,60-day,D60,Injured 60-Day
+641511,Jason Delay,jason delay,BOS,7-day,D7,Injured 7-Day
 822503,Jason Doktorczyk,jason doktorczyk,MIN,60-day,D60,Injured 60-Day
 805279,Jason Reitz,jason reitz,MIN,7-day,D7,Injured 7-Day
 814710,Jason Woodward,jason woodward,MIL,7-day,D7,Injured 7-Day
@@ -689,7 +691,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 823886,Jose Ortega,jose ortega,SD,60-day,D60,Injured 60-Day
 700247,Jose Pena Jr.,jose pena jr,PHI,60-day,D60,Injured 60-Day
 815899,Jose Perdomo,jose perdomo,ATL,full-season,ILF,Injured - Full Season
-699077,Jose Perez,jose perez,TB,7-day,D7,Injured 7-Day
 500779,Jose Quintana,jose quintana,COL,60-day,D60,Injured 60-Day
 814219,Jose Regalado,jose regalado,PIT,full-season,ILF,Injured - Full Season
 835617,Jose Taveras,jose taveras,LAD,7-day,D7,Injured 7-Day
@@ -752,6 +753,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 687482,Keagan Gillies,keagan gillies,BAL,7-day,D7,Injured 7-Day
 676775,Keaton Winn,keaton winn,SF,15-day,D15,Injured 15-Day
 669211,Keegan Akin,keegan akin,BAL,60-day,D60,Injured 60-Day
+624522,Keegan Thompson,keegan thompson,COL,7-day,D7,Injured 7-Day
 808323,Keeler Morfe,keeler morfe,BAL,60-day,D60,Injured 60-Day
 808138,Keiverson Ramírez,keiverson ramirez,STL,7-day,D7,Injured 7-Day
 686610,Ken Waldichuk,ken waldichuk,WSH,60-day,D60,Injured 60-Day
@@ -819,6 +821,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 837034,Luis Mantilla,luis mantilla,ATL,60-day,D60,Injured 60-Day
 838565,Luis Martinez,luis martinez,MIN,60-day,D60,Injured 60-Day
 815292,Luis Martinez-Gomez,luis martinez-gomez,CHC,7-day,D7,Injured 7-Day
+682641,Luis Matos,luis matos,MIL,7-day,D7,Injured 7-Day
 808153,Luis Merejo,luis merejo,CLE,7-day,D7,Injured 7-Day
 687879,Luis Quiñones,luis quinones,MIN,60-day,D60,Injured 60-Day
 687328,Luis Ramirez,luis ramirez,TEX,60-day,D60,Injured 60-Day
@@ -830,7 +833,6 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 800187,Luis Torres,luis torres,TOR,full-season,ILF,Injured - Full Season
 649966,Luis Urías,luis urias,TOR,10-day,D10,Injured 10-Day
 839316,Luis Villamizar,luis villamizar,DET,60-day,D60,Injured 60-Day
-702726,Luke Adams,luke adams,MIL,7-day,D7,Injured 7-Day
 830153,Luke Broderick,luke broderick,COL,full-season,ILF,Injured - Full Season
 701592,Luke Davis,luke davis,PHI,60-day,D60,Injured 60-Day
 803183,Luke Fox,luke fox,LAD,7-day,D7,Injured 7-Day
@@ -853,7 +855,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 829265,Marco Arcia,marco arcia,DET,60-day,D60,Injured 60-Day
 701392,Marco Dinges,marco dinges,MIL,7-day,D7,Injured 7-Day
 821605,Marcos Pol,marcos pol,ATL,full-season,ILF,Injured - Full Season
-800106,Marcos Torres,marcos torres,TEX,7-day,D7,Injured 7-Day
+800106,Marcos Torres,marcos torres,TEX,60-day,D60,Injured 60-Day
 815071,Marcus Phillips,marcus phillips,BOS,7-day,D7,Injured 7-Day
 807814,Mariano Salomon,mariano salomon,NYY,full-season,ILF,Injured - Full Season
 683336,Mario Zabala,mario zabala,SD,60-day,D60,Injured 60-Day
@@ -930,6 +932,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 815005,Nathanael Cijntje,nathanael cijntje,PHI,full-season,ILF,Injured - Full Season
 806441,Nehomar Ochoa Jr.,nehomar ochoa jr,HOU,60-day,D60,Injured 60-Day
 820982,Neiker Palacios,neiker palacios,AZ,7-day,D7,Injured 7-Day
+685716,Nelson Quiroz,nelson quiroz,LAD,7-day,D7,Injured 7-Day
 815148,Nestor German,nestor german,BAL,7-day,D7,Injured 7-Day
 686544,Nestor Lorant,nestor lorant,CIN,60-day,D60,Injured 60-Day
 815930,Nestor Miranda,nestor miranda,DET,full-season,ILF,Injured - Full Season
@@ -952,6 +955,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 800611,Noble Meyer,noble meyer,MIA,7-day,D7,Injured 7-Day
 814487,Nolan Hughes,nolan hughes,WSH,60-day,D60,Injured 60-Day
 813828,Nolan Santos,nolan santos,MIN,full-season,ILF,Injured - Full Season
+694384,Nolan Schanuel,nolan schanuel,LAA,10-day,D10,Injured 10-Day
 695589,Ocean Gabonia,ocean gabonia,NYY,full-season,ILF,Injured - Full Season
 823860,Oliver Gonzalez,oliver gonzalez,LAD,full-season,ILF,Injured - Full Season
 678316,Omar Cruz,omar cruz,SD,full-season,ILF,Injured - Full Season
@@ -1054,12 +1058,14 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 701350,Roman Anthony,roman anthony,BOS,60-day,D60,Injured 60-Day
 837782,Roman Silgado,roman silgado,DET,60-day,D60,Injured 60-Day
 837960,Ronaiker Narvaez,ronaiker narvaez,TEX,60-day,D60,Injured 60-Day
+821790,Ronald Ramirez,ronald ramirez,DET,7-day,D7,Injured 7-Day
 823723,Ronaldo Florencio,ronaldo florencio,COL,60-day,D60,Injured 60-Day
 837213,Roniel Joseph,roniel joseph,BAL,60-day,D60,Injured 60-Day
 678692,Ronny Henriquez,ronny henriquez,MIA,60-day,D60,Injured 60-Day
 592858,Rowan Wick,rowan wick,SF,60-day,D60,Injured 60-Day
 824634,Rowell Arroyo,rowell arroyo,CHC,full-season,ILF,Injured - Full Season
 831989,Roynel Confidente,roynel confidente,BAL,60-day,D60,Injured 60-Day
+702140,Ruben Ibarra,ruben ibarra,CIN,7-day,D7,Injured 7-Day
 823214,Rubender Pena,rubender pena,TB,full-season,ILF,Injured - Full Season
 803276,Ruddy Gomez,ruddy gomez,MIN,7-day,D7,Injured 7-Day
 808160,Ruddy Navarro,ruddy navarro,SEA,60-day,D60,Injured 60-Day
@@ -1159,6 +1165,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 829403,Trace Phillips,trace phillips,TB,60-day,D60,Injured 60-Day
 802469,Travis Honeyman,travis honeyman,STL,7-day,D7,Injured 7-Day
 805809,Travis Sykora,travis sykora,WSH,60-day,D60,Injured 60-Day
+701829,Trendan Parish,trendan parish,TB,7-day,D7,Injured 7-Day
 830485,Trent Buchanan,trent buchanan,ATL,60-day,D60,Injured 60-Day
 827528,Trent Turzenski,trent turzenski,BAL,7-day,D7,Injured 7-Day
 680436,Trenton Wallace,trenton wallace,TOR,60-day,D60,Injured 60-Day
@@ -1176,6 +1183,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 686654,Ty Adcock,ty adcock,SD,7-day,D7,Injured 7-Day
 692226,Ty Floyd,ty floyd,CIN,60-day,D60,Injured 60-Day
 695606,Ty Hodge,ty hodge,BOS,60-day,D60,Injured 60-Day
+814094,Tyler August,tyler august,ATH,7-day,D7,Injured 7-Day
 592122,Tyler Austin,tyler austin,CHC,60-day,D60,Injured 60-Day
 666121,Tyler Baum,tyler baum,WSH,60-day,D60,Injured 60-Day
 815628,Tyler Bell,tyler bell,COL,60-day,D60,Injured 60-Day
@@ -1188,7 +1196,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 808805,Tyler Pettorini,tyler pettorini,PHI,7-day,D7,Injured 7-Day
 691016,Tyler Soderstrom,tyler soderstrom,ATH,10-day,D10,Injured 10-Day
 701603,Tyler Stuart,tyler stuart,WSH,60-day,D60,Injured 60-Day
-802000,Tyler Switalski,tyler switalski,SF,7-day,D7,Injured 7-Day
+802000,Tyler Switalski,tyler switalski,SF,60-day,D60,Injured 60-Day
 694834,Tyler Wilson,tyler wilson,NYY,60-day,D60,Injured 60-Day
 656731,Tylor Megill,tylor megill,NYM,60-day,D60,Injured 60-Day
 692165,Tyrelle Chadwick,tyrelle chadwick,COL,60-day,D60,Injured 60-Day
@@ -1200,14 +1208,16 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 828349,Victor Rodriguez,victor rodriguez,MIA,7-day,D7,Injured 7-Day
 660644,Vidal Bruján,vidal brujan,NYM,7-day,D7,Injured 7-Day
 837039,Vismar Dagnino,vismar dagnino,HOU,60-day,D60,Injured 60-Day
-665489,Vladimir Guerrero Jr.,vladimir guerrero jr,TOR,7-day,D7,Injured 7-Day
+685133,Wade Meckler,wade meckler,LAA,7-day,D7,Injured 7-Day
 801384,Walin Castillo,walin castillo,MIA,7-day,D7,Injured 7-Day
 827734,Wei-En Lin,wei-en lin,ATH,60-day,D60,Injured 60-Day
 700327,Welinton Herrera,welinton herrera,COL,60-day,D60,Injured 60-Day
 672761,Wenceel Pérez,wenceel perez,DET,60-day,D60,Injured 60-Day
 686579,Wes Burton,wes burton,CLE,full-season,ILF,Injured - Full Season
 667744,Wesley Moore,wesley moore,PHI,full-season,ILF,Injured - Full Season
+702906,Wilfredo Lara,wilfredo lara,MIA,7-day,D7,Injured 7-Day
 684608,Will Brian,will brian,NYY,60-day,D60,Injured 60-Day
+682999,Will Childers,will childers,MIL,7-day,D7,Injured 7-Day
 694361,Will Klein,will klein,LAD,15-day,D15,Injured 15-Day
 703042,Will Riley,will riley,SEA,60-day,D60,Injured 60-Day
 805733,Will Rudy,will rudy,MIL,full-season,ILF,Injured - Full Season
@@ -1231,6 +1241,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 828492,Xavier Kolhosser,xavier kolhosser,MIN,7-day,D7,Injured 7-Day
 801870,Xavier Meachem,xavier meachem,MIA,full-season,ILF,Injured - Full Season
 837841,Yadier Munoz,yadier munoz,CHC,60-day,D60,Injured 60-Day
+821107,Yairo Padilla,yairo padilla,STL,7-day,D7,Injured 7-Day
 699043,Yamal Encarnacion,yamal encarnacion,HOU,7-day,D7,Injured 7-Day
 805699,Yeiber Cartaya,yeiber cartaya,BAL,7-day,D7,Injured 7-Day
 691558,Yeiner Fernandez,yeiner fernandez,LAD,full-season,ILF,Injured - Full Season
@@ -1257,6 +1268,7 @@ mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 688396,Zach Fruit,zach fruit,BAL,60-day,D60,Injured 60-Day
 823226,Zach Harris,zach harris,COL,60-day,D60,Injured 60-Day
 836051,Zach Rogacki,zach rogacki,COL,60-day,D60,Injured 60-Day
+702539,Zach Root,zach root,LAD,7-day,D7,Injured 7-Day
 677161,Zack Kelly,zack kelly,BOS,60-day,D60,Injured 60-Day
 687253,Zack Morris,zack morris,COL,full-season,ILF,Injured - Full Season
 668868,Zack Thompson,zack thompson,STL,60-day,D60,Injured 60-Day
