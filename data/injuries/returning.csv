@@ -1,5 +1,6 @@
 mlbam_id,name,norm_name,mlb_team,il_type,status_code,status_desc
 805951,Boston Baro,boston baro,NYM,rehab,RA,Rehab Assignment
+686730,Carson Spiers,carson spiers,CIN,rehab,RA,Rehab Assignment
 702501,Eli Serrano III,eli serrano iii,NYM,rehab,RA,Rehab Assignment
 803175,Ethan Anderson,ethan anderson,BAL,rehab,RA,Rehab Assignment
 804582,Garrett McMillan,garrett mcmillan,PIT,rehab,RA,Rehab Assignment
