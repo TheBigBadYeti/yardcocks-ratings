@@ -20,9 +20,11 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 687931,Carson Whisenhunt,SF,1,2026-08-24
 695505,Chase Burns,CIN,1,2026-08-24
 695549,Jackson Jobe,DET,1,2026-08-25
-693855,Ian Seymour,TB,1,2026-08-25
+668984,Casey Legumina,TB,1,2026-08-25
+663969,Tyler Phillips,MIA,1,2026-08-25
 801139,Payton Tolle,BOS,1,2026-08-25
 674841,Andrew Alvarez,WSH,1,2026-08-25
+690279,Mason Adams,COL,1,2026-08-25
 701542,Will Warren,NYY,1,2026-08-25
 814490,Ethan Pecko,HOU,1,2026-08-25
 453286,Max Scherzer,TOR,1,2026-08-25
@@ -33,6 +35,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 607192,Tyler Glasnow,LAD,1,2026-08-25
 641743,Anthony Kay,CWS,1,2026-08-25
 594798,Jacob deGrom,TEX,1,2026-08-25
+669461,Matthew Liberatore,STL,1,2026-08-25
 605135,Chris Bassitt,BAL,1,2026-08-25
 700712,Walbert Ureña,LAA,1,2026-08-25
 668909,Gavin Williams,CLE,1,2026-08-25
@@ -54,14 +57,16 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 666157,Nick Lodolo,CIN,1,2026-08-26
 680570,Grayson Rodriguez,LAA,1,2026-08-26
 676282,Joey Cantillo,CLE,1,2026-08-26
+681190,Randy Vásquez,SD,1,2026-08-26
 696149,Bubba Chandler,PIT,1,2026-08-26
 693433,Bryan Woo,SEA,1,2026-08-26
 666200,Jesús Luzardo,PHI,1,2026-08-26
 687473,Ryan Gusto,MIA,1,2026-08-26
 543243,Sonny Gray,BOS,1,2026-08-26
+663362,Matt Waldron,WSH,1,2026-08-26
 685299,Tanner Gordon,COL,1,2026-08-26
 663567,Peter Lambert,HOU,1,2026-08-26
-669456,Shane Bieber,TOR,1,2026-08-26
+693686,Spencer Miles,TOR,1,2026-08-26
 677976,Randy Dobnak,KC,1,2026-08-26
 476594,Robert Stock,NYM,1,2026-08-26
 669160,Dustin May,MIL,1,2026-08-26
@@ -69,6 +74,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 808963,Roki Sasaki,LAD,1,2026-08-26
 680732,Sean Burke,CWS,1,2026-08-26
 669022,MacKenzie Gore,TEX,1,2026-08-26
+700241,Michael McGreevy,STL,1,2026-08-26
 680694,Kyle Bradish,BAL,1,2026-08-26
 669372,J.T. Ginn,ATH,1,2026-08-26
 687570,Connor Prielipp,MIN,1,2026-08-26
@@ -77,6 +83,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 669432,Trevor Rogers,BAL,1,2026-08-27
 543037,Gerrit Cole,NYY,1,2026-08-27
 669713,Hayden Wesneski,HOU,1,2026-08-27
+681293,Spencer Arrighetti,TOR,1,2026-08-27
 702070,Noah Cameron,KC,1,2026-08-27
 640455,Sean Manaea,NYM,1,2026-08-27
 694819,Jacob Misiorowski,MIL,1,2026-08-27
@@ -84,4 +91,10 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 808967,Yoshinobu Yamamoto,LAD,1,2026-08-27
 695076,Rhett Lowder,CIN,1,2026-08-28
 676440,Tanner Bibee,CLE,1,2026-08-28
+681035,Christian Scott,NYM,1,2026-08-28
+656302,Dylan Cease,TOR,1,2026-08-28
 663776,Patrick Sandoval,BOS,1,2026-08-28
+672456,Keider Montero,DET,1,2026-08-29
+671096,Andrew Abbott,CIN,1,2026-08-29
+656492,Foster Griffin,CLE,1,2026-08-29
+690997,Nolan McLean,NYM,1,2026-08-29
