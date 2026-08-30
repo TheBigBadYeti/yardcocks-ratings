@@ -4,13 +4,13 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 645261,Sandy Alcantara,MIA,2,2026-08-24;2026-08-29
 624133,Ranger Suarez,BOS,2,2026-08-24;2026-08-30
 676917,Cade Cavalli,WSH,2,2026-08-24;2026-08-29
-663372,Ryan Feltner,COL,2,2026-08-24;2026-08-29
 677958,Kumar Rocker,TEX,2,2026-08-24;2026-08-30
 800048,Parker Messick,CLE,2,2026-08-24;2026-08-30
 518876,Merrill Kelly,AZ,2,2026-08-24;2026-08-29
 592332,Kevin Gausman,CHC,2,2026-08-24;2026-08-29
 592662,Robbie Ray,SD,2,2026-08-24;2026-08-30
 677952,Braxton Ashcraft,PIT,2,2026-08-24;2026-08-30
+605488,Jeffrey Springs,ATH,2,2026-08-24;2026-08-30
 805673,Zebby Matthews,MIN,2,2026-08-24;2026-08-30
 669302,Logan Gilbert,SEA,2,2026-08-24;2026-08-30
 554430,Zack Wheeler,PHI,2,2026-08-24;2026-08-30
@@ -18,24 +18,24 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 674841,Andrew Alvarez,WSH,2,2026-08-25;2026-08-30
 690279,Mason Adams,COL,2,2026-08-25;2026-08-30
 701542,Will Warren,NYY,2,2026-08-25;2026-08-30
+814490,Ethan Pecko,HOU,2,2026-08-25;2026-08-30
 453286,Max Scherzer,TOR,2,2026-08-25;2026-08-30
 607625,Seth Lugo,KC,2,2026-08-25;2026-08-30
 804267,Zac Thornton,NYM,2,2026-08-25;2026-08-30
+607192,Tyler Glasnow,LAD,2,2026-08-25;2026-08-30
 669461,Matthew Liberatore,STL,2,2026-08-25;2026-08-30
 605135,Chris Bassitt,BAL,2,2026-08-25;2026-08-30
 669160,Dustin May,MIL,2,2026-08-26;2026-08-30
+663372,Ryan Feltner,COL,1,2026-08-24
 664353,José Urquidy,CWS,1,2026-08-24
 691946,George Klassen,LAA,1,2026-08-24
-605488,Jeffrey Springs,ATH,1,2026-08-24
 687931,Carson Whisenhunt,SF,1,2026-08-24
 695549,Jackson Jobe,DET,1,2026-08-25
 668984,Casey Legumina,TB,1,2026-08-25
 663969,Tyler Phillips,MIA,1,2026-08-25
 801139,Payton Tolle,BOS,1,2026-08-25
-814490,Ethan Pecko,HOU,1,2026-08-25
 690986,Kyle Harrison,MIL,1,2026-08-25
 693821,Bryce Elder,ATL,1,2026-08-25
-607192,Tyler Glasnow,LAD,1,2026-08-25
 641743,Anthony Kay,CWS,1,2026-08-25
 594798,Jacob deGrom,TEX,1,2026-08-25
 700712,Walbert Ureña,LAA,1,2026-08-25
@@ -126,6 +126,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 607074,Carlos Rodón,NYY,1,2026-08-29
 687562,Jake Bennett,BOS,1,2026-08-29
 608331,Max Fried,NYY,1,2026-08-29
+687941,Alec Gamboa,BOS,1,2026-08-29
 672456,Keider Montero,DET,1,2026-08-29
 605483,Blake Snell,LAD,1,2026-08-29
 641927,Bailey Ober,MIN,1,2026-08-29
@@ -135,6 +136,8 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 671096,Andrew Abbott,CIN,1,2026-08-29
 667755,José Soriano,TOR,1,2026-08-29
 807739,Kade Anderson,SEA,1,2026-08-29
+683363,Matt Wilkinson,SF,1,2026-08-29
+805074,Yunior Marte,SF,1,2026-08-29
 683352,Mitch Bratt,AZ,1,2026-08-29
 656492,Foster Griffin,CLE,1,2026-08-29
 663738,Daniel Lynch IV,KC,1,2026-08-29
@@ -143,6 +146,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 607259,Nick Martinez,TB,1,2026-08-29
 621111,Walker Buehler,SD,1,2026-08-29
 527048,Martín Pérez,ATL,1,2026-08-29
+688642,Zach Agnos,COL,1,2026-08-29
 675660,Shane Drohan,MIL,1,2026-08-29
 615698,Cal Quantrill,TEX,1,2026-08-29
 678022,Jack Perkins,ATH,1,2026-08-29
@@ -151,5 +155,6 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 650911,Cristopher Sánchez,PHI,1,2026-08-29
 676083,Janson Junk,MIA,1,2026-08-30
 641816,Tyler Mahle,ATL,1,2026-08-30
+663855,Jordan Hicks,CWS,1,2026-08-30
 579328,Yusei Kikuchi,LAA,1,2026-08-30
 684007,Shota Imanaga,CHC,1,2026-08-30
