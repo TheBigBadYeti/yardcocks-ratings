@@ -1,2 +1,6 @@
-pandas>=2.0
-numpy>=1.24
+# Pinned EXACTLY so desktop, cloud VM, and the GitHub Action produce byte-identical
+# ratings. An unpinned range (>=2.0) let pandas 3.x land on one machine and not
+# another, which surfaced as "library-version reshuffle noise" in a refresh diff.
+# Bump deliberately, on all surfaces at once, then re-run the backtest.
+pandas==3.0.3
+numpy==2.4.6
