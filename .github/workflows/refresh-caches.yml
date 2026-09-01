@@ -60,12 +60,16 @@ jobs:
           # minors eligibility (who's currently on a real MiLB team) -- volatile, needs
           # the current_player_ratings.csv on main to know the managed roster
           python scripts/fetch_minors_eligibility.py || echo "[minors] fetch failed, keeping prior"
+          # Statcast expected stats (Baseball Savant, free). Writes a DATED copy every
+          # run -- these inputs had no history, so nothing built on them was backtestable.
+          python scripts/fetch_xstats.py || echo "[xstats] fetch failed, keeping prior"
 
       - name: Commit if changed
         run: |
           git config user.name  "yardcocks-cache-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/recency/ data/schedule/ data/roster/minors_eligible.csv \
+                  data/xstats/ \
                   data/injuries/il_status.csv data/injuries/returning.csv
           if git diff --cached --quiet; then
             echo "No cache changes -- nothing to commit."
