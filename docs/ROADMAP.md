@@ -105,7 +105,16 @@ Where a real, durable edge comes from (in this order of leverage):
       waiver adds, and trade verdicts next to what actually happened. Without this,
       lineups/waivers/trades can never be backtested.
 
-### P1 — before the Aug 12 trade deadline (the season's only remaining lever)
+### Where the calendar actually is (written 2026-09-01)
+The Aug 12 trade deadline has **passed** and the playoffs (period 22, top 4) began
+Aug 31 with Kipp eliminated. There is no in-season lever left this year. That is not
+bad news for the plan — it means the whole build happens with **no live-decision
+pressure** and lands before the offseason draft, which in a dynasty league is where
+seasons are actually won. Use September for two things only: keep snapshotting weekly
+(every week adds a validation window to the backtest), and get live reps / reads on
+the young players who'll be the 2027 core.
+
+### P1 — the offseason build (Sept → draft): the projection system
 - [ ] **a. Projection v1 in league points.** `scripts/fetch_xstats.py` (Savant hitters +
       pitchers, keyed by MLB ID) → `projection_v1`: expected-stat true-talent rate ×
       recency blend × playing-time estimate, scored in THIS league's points. Ship only if
@@ -115,9 +124,11 @@ Where a real, durable edge comes from (in this order of leverage):
       the NOW half to projection_v1; keep the validated asset model as the FUTURE half.
 - [ ] **c. Appetite from points-for, not W-L.** `standings.record_appetite` → blend PF
       rank (true strength) with W-L (what the owner *feels*). Real buyers = high PF.
-- [ ] **d. Deadline sell plan.** Kipp is eliminated (8 GB, top-4 playoffs). Generate the
-      list of every win-now piece, priced to each real buyer's need, with the youth /
-      pick ask. Picks are tradeable (28 rounds) — model them as assets.
+      Trading is open all year (rules: "Trading Period: All Year") — offseason deals
+      are the sell window that the deadline no longer is.
+- [ ] **d. Offseason sell/flip plan.** Every win-now vet priced to each real buyer's
+      need, with the youth / pick ask. Picks are tradeable (28 rounds) — model them as
+      assets. Time it for when contenders re-tool after their playoff runs.
 - [ ] **e. Fix the missing edge-finder.** Rebuild `market_gap` = projection_v1 − market
       price (roster% + rank), validate it on the backtest, and have `/waivers` surface
       UNDERVALUED-and-available as the headline add.
