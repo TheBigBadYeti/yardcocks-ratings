@@ -1,7 +1,6 @@
 player,mlbam_id,current_team,level,eligible
 Arjun Nimmala,805796,Rocket City Trash Pandas,Double-A,True
 Billy Carlson,815814,Kannapolis Cannon Ballers,Single-A,True
-Ethan Salas,806956,El Paso Chihuahuas,Triple-A,True
 Jamie Arnold,701364,Midland RockHounds,Double-A,True
 Jeferson Quero,691620,Nashville Sounds,Triple-A,True
 Jonny Farmelo,806071,Arkansas Travelers,Double-A,True
@@ -20,6 +19,7 @@ Cole Young,702284,Seattle Mariners,Major League Baseball,False
 Curtis Mead,678554,Boston Red Sox,Major League Baseball,False
 Dominic Canzone,686527,Seattle Mariners,Major League Baseball,False
 Dylan Crews,686611,Washington Nationals,Major League Baseball,False
+Ethan Salas,806956,San Diego Padres,Major League Baseball,False
 Fernando Tatis Jr.,665487,San Diego Padres,Major League Baseball,False
 Francisco Lindor,596019,New York Mets,Major League Baseball,False
 Garrett Crochet,676979,Boston Red Sox,Major League Baseball,False
