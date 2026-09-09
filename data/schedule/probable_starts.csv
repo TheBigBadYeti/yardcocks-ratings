@@ -1,4 +1,5 @@
 mlb_id,pitcher,team,starts_this_week,start_dates
+682052,Jacob Lopez,ATH,2,2026-09-07;2026-09-13
 666200,Jesús Luzardo,PHI,1,2026-09-07
 656550,Grant Holmes,ATL,1,2026-09-07
 691587,Eury Pérez,MIA,1,2026-09-07
@@ -19,7 +20,6 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 700241,Michael McGreevy,STL,1,2026-09-07
 686218,Emmet Sheehan,LAD,1,2026-09-07
 695505,Chase Burns,CIN,1,2026-09-07
-682052,Jacob Lopez,ATH,1,2026-09-07
 656302,Dylan Cease,TOR,1,2026-09-07
 687064,Brandon Young,BAL,1,2026-09-08
 676440,Tanner Bibee,CLE,1,2026-09-08
@@ -43,6 +43,8 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 656849,David Peterson,CHC,1,2026-09-08
 663554,Casey Mize,SD,1,2026-09-08
 683000,Riley Cornelio,WSH,1,2026-09-08
+682243,Bryce Miller,SEA,1,2026-09-08
+615698,Cal Quantrill,TEX,1,2026-09-08
 678022,Jack Perkins,ATH,1,2026-09-08
 667755,José Soriano,TOR,1,2026-09-08
 694738,Landen Roupp,SF,1,2026-09-08
@@ -51,9 +53,14 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 666157,Nick Lodolo,CIN,1,2026-09-08
 672456,Keider Montero,DET,1,2026-09-09
 805673,Zebby Matthews,MIN,1,2026-09-09
+669620,Brady Basso,ATH,1,2026-09-09
+680755,Braydon Fisher,TOR,1,2026-09-09
 694918,Blade Tidwell,SF,1,2026-09-09
+669467,Andre Pallante,STL,1,2026-09-09
 621111,Walker Buehler,SD,1,2026-09-09
 800600,Jackson Kent,WSH,1,2026-09-09
+807739,Kade Anderson,SEA,1,2026-09-09
+674003,Cody Bradford,TEX,1,2026-09-09
 669358,Shane Baz,BAL,1,2026-09-09
 656492,Foster Griffin,CLE,1,2026-09-09
 650911,Cristopher Sánchez,PHI,1,2026-09-09
@@ -66,7 +73,9 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 608372,Tomoyuki Sugano,COL,1,2026-09-09
 643377,Griffin Jax,TB,1,2026-09-09
 663738,Daniel Lynch IV,KC,1,2026-09-09
+668678,Zac Gallen,AZ,1,2026-09-09
 663436,Davis Martin,CWS,1,2026-09-09
+669199,Lake Bachar,PIT,1,2026-09-09
 701656,Logan Henderson,MIL,1,2026-09-09
 592332,Kevin Gausman,CHC,1,2026-09-09
 808967,Yoshinobu Yamamoto,LAD,1,2026-09-09
@@ -74,6 +83,8 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 527048,Martín Pérez,ATL,1,2026-09-10
 607259,Nick Martinez,TB,1,2026-09-10
 554430,Zack Wheeler,PHI,1,2026-09-10
+669302,Logan Gilbert,SEA,1,2026-09-10
+594798,Jacob deGrom,TEX,1,2026-09-10
 608331,Max Fried,NYY,1,2026-09-10
 663372,Ryan Feltner,COL,1,2026-09-10
 683003,Jared Jones,PIT,1,2026-09-10
@@ -81,3 +92,8 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 519242,Chris Sale,ATL,1,2026-09-11
 690986,Kyle Harrison,MIL,1,2026-09-11
 800048,Parker Messick,CLE,1,2026-09-11
+605488,Jeffrey Springs,ATH,1,2026-09-11
+804267,Zac Thornton,NYM,1,2026-09-12
+668909,Gavin Williams,CLE,1,2026-09-12
+695611,Gage Jump,ATH,1,2026-09-12
+681035,Christian Scott,NYM,1,2026-09-13
