@@ -25,9 +25,11 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 678022,Jack Perkins,ATH,1,2026-09-15
 656492,Foster Griffin,CLE,1,2026-09-15
 663436,Davis Martin,CWS,1,2026-09-15
+669199,Lake Bachar,PIT,1,2026-09-15
 694819,Jacob Misiorowski,MIL,1,2026-09-15
 800600,Jackson Kent,WSH,1,2026-09-15
 650911,Cristopher Sánchez,PHI,1,2026-09-15
+680755,Braydon Fisher,TOR,1,2026-09-15
 623454,Drew Anderson,DET,1,2026-09-15
 640455,Sean Manaea,NYM,1,2026-09-15
 669358,Shane Baz,BAL,1,2026-09-15
@@ -37,9 +39,11 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 608331,Max Fried,NYY,1,2026-09-15
 669467,Andre Pallante,STL,1,2026-09-15
 694918,Blade Tidwell,SF,1,2026-09-15
+594798,Jacob deGrom,TEX,1,2026-09-15
 663776,Patrick Sandoval,BOS,1,2026-09-15
 686613,Hunter Brown,HOU,1,2026-09-15
 608379,Michael Wacha,KC,1,2026-09-15
+607536,Kyle Freeland,COL,1,2026-09-15
 621111,Walker Buehler,SD,1,2026-09-15
 696270,Ryan Johnson,LAA,1,2026-09-15
 669302,Logan Gilbert,SEA,1,2026-09-15
@@ -50,7 +54,9 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 805673,Zebby Matthews,MIN,1,2026-09-16
 607074,Carlos Rodón,NYY,1,2026-09-16
 453286,Max Scherzer,TOR,1,2026-09-16
+672456,Keider Montero,DET,1,2026-09-16
 671096,Andrew Abbott,CIN,1,2026-09-16
+605483,Blake Snell,LAD,1,2026-09-16
 607259,Nick Martinez,TB,1,2026-09-16
 669620,Brady Basso,ATH,1,2026-09-16
 683003,Jared Jones,PIT,1,2026-09-16
@@ -60,6 +66,8 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 476594,Robert Stock,NYM,1,2026-09-16
 605135,Chris Bassitt,BAL,1,2026-09-16
 684007,Shota Imanaga,CHC,1,2026-09-16
+702275,JR Ritchie,ATL,1,2026-09-16
+669022,MacKenzie Gore,TEX,1,2026-09-16
 687562,Jake Bennett,BOS,1,2026-09-16
 664299,Cristian Javier,HOU,1,2026-09-16
 663738,Daniel Lynch IV,KC,1,2026-09-16
@@ -73,6 +81,9 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 663903,Brady Singer,CIN,1,2026-09-17
 656876,Drew Rasmussen,TB,1,2026-09-17
 605488,Jeffrey Springs,ATH,1,2026-09-17
-687312,Gabriel Hughes,COL,1,2026-09-17
+685299,Tanner Gordon,COL,1,2026-09-17
+650633,Michael King,SD,1,2026-09-17
 607625,Seth Lugo,KC,1,2026-09-17
 543243,Sonny Gray,BOS,1,2026-09-17
+695505,Chase Burns,CIN,1,2026-09-18
+681517,Kyle Leahy,STL,1,2026-09-18
