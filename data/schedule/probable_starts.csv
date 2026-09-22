@@ -13,7 +13,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 605135,Chris Bassitt,BAL,1,2026-09-22
 453286,Max Scherzer,TOR,1,2026-09-22
 623454,Drew Anderson,DET,1,2026-09-22
-800600,Jackson Kent,WSH,1,2026-09-22
+683000,Riley Cornelio,WSH,1,2026-09-22
 683003,Jared Jones,PIT,1,2026-09-22
 669467,Andre Pallante,STL,1,2026-09-22
 554430,Zack Wheeler,PHI,1,2026-09-22
@@ -23,6 +23,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 702275,JR Ritchie,ATL,1,2026-09-22
 663738,Daniel Lynch IV,KC,1,2026-09-22
 641743,Anthony Kay,CWS,1,2026-09-22
+684007,Shota Imanaga,CHC,1,2026-09-22
 676083,Janson Junk,MIA,1,2026-09-22
 669022,MacKenzie Gore,TEX,1,2026-09-22
 640455,Sean Manaea,NYM,1,2026-09-22
@@ -41,12 +42,14 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 605400,Aaron Nola,PHI,1,2026-09-23
 701656,Logan Henderson,MIL,1,2026-09-23
 543037,Gerrit Cole,NYY,1,2026-09-23
+693855,Ian Seymour,TB,1,2026-09-23
 543243,Sonny Gray,BOS,1,2026-09-23
 656492,Foster Griffin,CLE,1,2026-09-23
 519242,Chris Sale,ATL,1,2026-09-23
 671096,Andrew Abbott,CIN,1,2026-09-23
 607625,Seth Lugo,KC,1,2026-09-23
 607200,Erick Fedde,CWS,1,2026-09-23
+592332,Kevin Gausman,CHC,1,2026-09-23
 687473,Ryan Gusto,MIA,1,2026-09-23
 690997,Nolan McLean,NYM,1,2026-09-23
 690279,Mason Adams,COL,1,2026-09-23
@@ -63,6 +66,7 @@ mlb_id,pitcher,team,starts_this_week,start_dates
 593958,Eduardo Rodriguez,AZ,1,2026-09-24
 624133,Ranger Suarez,BOS,1,2026-09-24
 693645,Cam Schlittler,NYY,1,2026-09-24
+642547,Freddy Peralta,TB,1,2026-09-24
 641816,Tyler Mahle,ATL,1,2026-09-24
 663903,Brady Singer,CIN,1,2026-09-24
 601713,Nick Pivetta,SD,1,2026-09-24
